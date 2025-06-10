@@ -19,7 +19,7 @@ router.post("/deposit", async (req, res) => {
     // 2. Update or create user balance
     const balance = await UserBalance.findOneAndUpdate(
       { userId },
-      { $inc: { balance: amount }, $set: { currencyType } },
+      { $inc: { amount: amount }, $set: { currencyType } },
       { new: true, upsert: true }
     );
 
@@ -31,7 +31,7 @@ router.post("/deposit", async (req, res) => {
 
 // 💸 POST /api/wallet/withdraw
 router.post("/withdraw", async (req, res) => {
-  const { userId, amount, method, currencyType = "NGN" } = req.body;
+  const { userId, amount, currencyType = "NGN" } = req.body;
 
   if (!userId || !amount || amount <= 0 || !method) {
     return res.status(400).json({ message: "Invalid withdrawal data" });
@@ -45,13 +45,13 @@ router.post("/withdraw", async (req, res) => {
     }
 
     // 1. Save withdraw history
-    await Withdraw.create({ userId, amount, method, currencyType });
+    await Withdraw.create({ userId, amount, currencyType });
 
     // 2. Deduct from balance
-    userBalance.balance -= amount;
+    userBalance.amount -= amount;
     await userBalance.save();
 
-    res.status(200).json({ message: "Withdrawal successful", balance: userBalance });
+    res.status(200).json({ message: "Withdrawal successful", amount: userBalance });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
