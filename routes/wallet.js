@@ -119,10 +119,10 @@ router.get("/history/:userId", async (req, res) => {
         let withdrawals = [];
 
         // 2. Handle Category Filtering (and apply date filter to individual queries)
-        if (!category || category === 'All Categories' || category === 'Deposits') {
+        if (!category || category === 'All' || category === 'Deposits') {
             deposits = await Deposit.find(filter).lean();
         }
-        if (!category || category === 'All Categories' || category === 'Withdrawals') {
+        if (!category || category === 'All' || category === 'Withdrawals') {
             withdrawals = await Withdraw.find(filter).lean();
         }
 
