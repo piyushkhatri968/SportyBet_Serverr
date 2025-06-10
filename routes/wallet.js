@@ -129,7 +129,7 @@ router.get("/history/:userId", async (req, res) => {
 
         // 3. Combine and Map to a consistent format
         const combinedHistory = [
-            ...deposits.map(d => ({
+            ...deposits.map(d => ({ 
                 id: d._id, // Keep original ID if needed
                 type: "Deposits", // Standardize type for frontend
                 date: moment(d.date).format('DD/MM/YY'), // Format date
