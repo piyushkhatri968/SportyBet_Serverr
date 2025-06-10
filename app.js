@@ -14,6 +14,7 @@ const cashOut = require("./routes/cashoutRoute.js");
 const imageRoutes = require("./routes/ImageRoute.js")
 const matchesRoutes = require("./routes/matchesRoute.js")
 const topmatchesRoutes = require("./routes/topMatchRoute.js")
+const WalletRoutes = require("./routes/wallet.js")
 const path = require("path")
 
 // Middleware for parsing JSON
@@ -38,13 +39,14 @@ app.get("/api", (req, res) => {
 app.use("/api", otpRoutes);
 app.use("/api", betRoute);
 app.use("/api", multibet);
-app.use("/api", depositRoute);
+// app.use("/api", depositRoute);
 app.use("/api", verifycodeRoute);
 app.use("/api", oddRoute);
 app.use("/api", cashOut);
 app.use("/api", imageRoutes);
 app.use("/api", matchesRoutes);
 app.use("/api", topmatchesRoutes);
+app.use("/api", WalletRoutes);
 
 
 // Connect to MongoDB (replace with your own URI)
