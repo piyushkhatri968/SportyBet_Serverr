@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Bet = require("../models/bet");
-const Deposit =  require("../models/deposite")
+const Deposit =  require("../models/UserBalance")
 const Match = require("../models/multibets")
 
 // Fetch Bets for Logged-in User

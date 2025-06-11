@@ -32,8 +32,9 @@ router.post("/deposit", async (req, res) => {
 
 // 💸 POST /api/wallet/withdraw
 router.post("/withdraw", async (req, res) => {
-  const { userId, amount, currencyType = "NGN" } = req.body;
+  const { userId, amount, method='mobile_money', currencyType = "NGN" } = req.body;
 
+  // Validation
   if (!userId || !amount || amount <= 0 || !method) {
     return res.status(400).json({ message: "Invalid withdrawal data" });
   }
@@ -41,12 +42,12 @@ router.post("/withdraw", async (req, res) => {
   try {
     const userBalance = await UserBalance.findOne({ userId });
 
-    if (!userBalance || userBalance.balance < amount) {
+    if (!userBalance || userBalance.amount < amount) {
       return res.status(400).json({ message: "Insufficient balance" });
     }
 
     // 1. Save withdraw history
-    await Withdraw.create({ userId, amount, currencyType });
+    await Withdraw.create({ userId, amount, method, currencyType }); // ✅ include method
 
     // 2. Deduct from balance
     userBalance.amount -= amount;
@@ -57,6 +58,7 @@ router.post("/withdraw", async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
 
 // 📊 GET /api/wallet/history/:userId
 const parseDateString = (dateStr) => {
