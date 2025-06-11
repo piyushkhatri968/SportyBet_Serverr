@@ -3,7 +3,7 @@ const router = express.Router();
 const Bet = require("../models/bet");
 const Deposit =  require("../models/UserBalance")
 const Match = require("../models/multibets")
-
+const mongoose = require("mongoose");
 // Fetch Bets for Logged-in User
 router.get("/bets/:userId", async (req, res) => {
   try {
@@ -215,8 +215,9 @@ router.delete("/bets/:betId", async (req, res) => {
   }
 });
 
-router.delete("/bets/:userId", async (req, res) => {
+router.delete("/aLLbets/:userId", async (req, res) => {
   const { userId } = req.params;
+  console.log(userId)
 
   try {
     // Find all bets of the user
