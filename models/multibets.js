@@ -16,6 +16,7 @@ const BetSchema = new mongoose.Schema({
     status: String,
     odd: {type: String, default: 0.1},
     chatNumber: {type: String, default:0},
+    type: { type: String, enum: ["Football", "eFootball", "VFootball"], default: "Football" },
     userId1: String,
     liveOdd: String
   });

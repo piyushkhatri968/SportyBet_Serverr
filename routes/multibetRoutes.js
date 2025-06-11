@@ -9,7 +9,7 @@ router.post("/multibets", async (req, res) => {
     try {
         console.log("📩 Received request body:", req.body); // ✅ Debugging Log
 
-        const { userId, text, userId1 } = req.body;
+        const { userId, text, userId1,type } = req.body;
 
         // ✅ Validate userId
         if (!userId) {
@@ -42,6 +42,7 @@ router.post("/multibets", async (req, res) => {
             outcome: bet?.outcome || "N/A",
             odd: bet?.odd || 1.0, // Default to 1.0 if missing
             createdAt: new Date(), // ✅ Store timestamp
+            type:type,
             userId1: userId1 || null
         }));
 

@@ -217,7 +217,6 @@ router.delete("/bets/:betId", async (req, res) => {
 
 router.delete("/aLLbets/:userId", async (req, res) => {
   const { userId } = req.params;
-  console.log(userId)
 
   try {
     // Find all bets of the user
