@@ -205,4 +205,49 @@ router.put("/update-currency", async (req, res) => {
 });
 
 
+router.delete("/transaction/:transactionId", async (req, res) => {
+  const { transactionId } = req.params;
+
+  try {
+    // Try to delete from Deposit collection first
+    let deleted = await Deposit.findByIdAndDelete(transactionId);
+
+    if (deleted) {
+      return res.status(200).json({ message: "Deleted from Deposits" });
+    }
+
+    // If not found in Deposit, try Withdraw
+    deleted = await Withdraw.findByIdAndDelete(transactionId);
+
+    if (deleted) {
+      return res.status(200).json({ message: "Deleted from Withdrawals" });
+    }
+
+    return res.status(404).json({ message: "Transaction not found in either collection" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+
+router.delete("/transactions/user/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const depositResult = await Deposit.deleteMany({ userId });
+    const withdrawResult = await Withdraw.deleteMany({ userId });
+
+    const totalDeleted = depositResult.deletedCount + withdrawResult.deletedCount;
+
+    res.status(200).json({
+      message: `Deleted ${totalDeleted} transaction(s) for user ${userId}`,
+      depositsDeleted: depositResult.deletedCount,
+      withdrawalsDeleted: withdrawResult.deletedCount,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+
 module.exports = router;

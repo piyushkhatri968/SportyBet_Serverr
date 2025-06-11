@@ -214,5 +214,32 @@ router.delete("/bets/:betId", async (req, res) => {
     res.status(500).json({ error: "Internal server error", details: error.message });
   }
 });
+
+router.delete("/bets", async (req, res) => {
+  try {
+    const allBets = await Bet.find();
+
+    for (const bet of allBets) {
+      // Refund the stake
+      const deposit = await Deposit.findOne({ userId: bet.userId });
+      if (deposit) {
+        deposit.amount += bet.stake;
+        await deposit.save();
+      }
+
+      // Delete related matches
+      await Match.deleteMany({ betId: bet._id });
+    }
+
+    // Delete all bets
+    await Bet.deleteMany();
+
+    res.json({ message: "All bets and related matches deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting all bets:", error.message);
+    res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+});
+
   
 module.exports = router;
