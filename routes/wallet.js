@@ -157,7 +157,7 @@ router.get("/history/:userId", async (req, res) => {
                 description: w.description,
                 status: w.status || 'Completed' // Provide a default status if none exists
             })),
-             ...Winning.map(w => ({
+             ...Winnings.map(w => ({
                 id: w._id,
                 type: "Winnings", // Standardize type for frontend
                 date: moment(w.date).format('DD/MM/YY'), // Format date
