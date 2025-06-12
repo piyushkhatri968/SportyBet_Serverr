@@ -15,6 +15,7 @@ const imageRoutes = require("./routes/ImageRoute.js")
 const matchesRoutes = require("./routes/matchesRoute.js")
 const topmatchesRoutes = require("./routes/topMatchRoute.js")
 const WalletRoutes = require("./routes/wallet.js")
+const WinningRoutes = require("./routes/winningRoute.js")
 const path = require("path")
 
 // Middleware for parsing JSON
@@ -47,6 +48,7 @@ app.use("/api", imageRoutes);
 app.use("/api", matchesRoutes);
 app.use("/api", topmatchesRoutes);
 app.use("/api", WalletRoutes);
+app.use("/api", WinningRoutes);
 
 
 // Connect to MongoDB (replace with your own URI)

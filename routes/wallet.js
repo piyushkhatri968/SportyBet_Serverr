@@ -3,7 +3,9 @@ const router = express.Router();
 const Deposit = require("../models/Deposit");
 const Withdraw = require("../models/Withdraw");
 const UserBalance = require("../models/UserBalance");
-const moment = require("moment")
+const moment = require("moment");
+const Bet = require("../models/bet");
+const Winning = require("../models/winningModel");
 
 // 📥 POST /api/wallet/deposit
 router.post("/deposit", async (req, res) => {
@@ -120,6 +122,8 @@ router.get("/history/:userId", async (req, res) => {
     try {
         let deposits = [];
         let withdrawals = [];
+        let bets=[]
+        let Winnings=[]
 
         // 2. Handle Category Filtering (and apply date filter to individual queries)
         if (!category || category === 'All' || category === 'Deposits') {
@@ -127,6 +131,12 @@ router.get("/history/:userId", async (req, res) => {
         }
         if (!category || category === 'All' || category === 'Withdrawals') {
             withdrawals = await Withdraw.find(filter).lean();
+        }
+         if (!category || category === 'All' || category === 'Winnings') {
+            Winnings = await Winning.find(filter).lean();
+        }
+         if (!category || category === 'All' || category === 'Bets') {
+            bets = await Bet.find(filter).lean();
         }
 
         // 3. Combine and Map to a consistent format
@@ -144,6 +154,22 @@ router.get("/history/:userId", async (req, res) => {
                 type: "Withdrawals", // Standardize type for frontend
                 date: moment(w.date).format('DD/MM/YY'), // Format date
                 amount: w.amount * -1, // Withdrawals should be negative for frontend
+                description: w.description,
+                status: w.status || 'Completed' // Provide a default status if none exists
+            })),
+             ...Winning.map(w => ({
+                id: w._id,
+                type: "Winnings", // Standardize type for frontend
+                date: moment(w.date).format('DD/MM/YY'), // Format date
+                amount: w.amount * -1, // Withdrawals should be negative for frontend
+                description: w.description,
+                status: w.status || 'Completed' // Provide a default status if none exists
+            })),
+            ...bets.map(w => ({
+                id: w._id,
+                type: "bets", // Standardize type for frontend
+                date: moment(w.date).format('YY/MM/DD'), // Format date
+                amount: w.stake, // Withdrawals should be negative for frontend
                 description: w.description,
                 status: w.status || 'Completed' // Provide a default status if none exists
             })),
