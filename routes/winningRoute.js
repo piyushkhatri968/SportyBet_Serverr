@@ -1,39 +1,31 @@
 const express = require("express");
 const router = express.Router();
-const Deposit = require("../models/deposite");
 const Winning = require("../models/winningModel");
+const UserBalance = require("../models/UserBalance"); // Make sure this is correct
 
 router.post("/winning", async (req, res) => {
-  const { userId, amount } = req.body;
+  const { userId, amount, currencyType = "NGN" } = req.body;
 
   if (!userId || !amount || amount <= 0) {
     return res.status(400).json({ message: "Invalid winning data" });
   }
 
   try {
-    // 1. Create a new Winning record
-    const newWinning = new Winning({
-      userId,
-      amount,
-      date: new Date(), // Optional: for timestamping
-    });
-    await newWinning.save();
+    // 1. Save winning history
+    await Winning.create({ userId, amount, currencyType, date: new Date() });
 
-    // 2. Update (or create) Deposit record
-    const deposit = await Deposit.findOneAndUpdate(
+    // 2. Update or create user balance
+    const balance = await UserBalance.findOneAndUpdate(
       { userId },
-      { $inc: { amount: amount } },
+      { $inc: { amount }, $set: { currencyType } },
       { new: true, upsert: true }
     );
 
-    res.status(200).json({
-      message: "Winning processed successfully",
-      deposit,
-      winning: newWinning,
-    });
+    res.status(200).json({ message: "Winning added successfully", balance });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error });
+    console.error("Error processing winning:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
-module.exports = router
+module.exports = router;
