@@ -126,16 +126,16 @@ router.get("/history/:userId", async (req, res) => {
         let Winnings=[]
 
         // 2. Handle Category Filtering (and apply date filter to individual queries)
-        if (!category || category === 'All' || category === 'Deposits') {
+        if (!category || category === 'All Categories' || category === 'Deposits') {
             deposits = await Deposit.find(filter).lean();
         }
-        if (!category || category === 'All' || category === 'Withdrawals') {
+        if (!category || category === 'All Categories' || category === 'Withdrawals') {
             withdrawals = await Withdraw.find(filter).lean();
         }
-         if (!category || category === 'All' || category === 'Winnings') {
+         if (!category || category === 'All Categories' || category === 'Winnings') {
             Winnings = await Winning.find(filter).lean();
         }
-         if (!category || category === 'All' || category === 'Bets') {
+         if (!category || category === 'All Categories' || category === 'Bets') {
             bets = await Bet.find(filter).lean();
         }
 
@@ -144,7 +144,7 @@ router.get("/history/:userId", async (req, res) => {
             ...deposits.map(d => ({ 
                 id: d._id, // Keep original ID if needed
                 type: "Deposits", // Standardize type for frontend
-                date: moment(d.date).format('DD/MM/YY'), // Format date
+                date: d.date, // Format date
                 amount: d.amount,
                 description: d.description,
                 status: d.status || 'Completed' // Provide a default status if none exists
@@ -152,7 +152,7 @@ router.get("/history/:userId", async (req, res) => {
             ...withdrawals.map(w => ({
                 id: w._id,
                 type: "Withdrawals", // Standardize type for frontend
-                date: moment(w.date).format('DD/MM/YY'), // Format date
+                date: w.date, // Format date
                 amount: w.amount * -1, // Withdrawals should be negative for frontend
                 description: w.description,
                 status: w.status || 'Completed' // Provide a default status if none exists
@@ -160,7 +160,7 @@ router.get("/history/:userId", async (req, res) => {
              ...Winnings.map(w => ({
                 id: w._id,
                 type: "Winnings", // Standardize type for frontend
-                date: moment(w.date).format('DD/MM/YY'), // Format date
+                date: w.date, // Format date
                 amount: w.amount * -1, // Withdrawals should be negative for frontend
                 description: w.description,
                 status: w.status || 'Completed' // Provide a default status if none exists
@@ -168,7 +168,7 @@ router.get("/history/:userId", async (req, res) => {
             ...bets.map(w => ({
                 id: w._id,
                 type: "bets", // Standardize type for frontend
-                date: moment(w.date).format('YY/MM/DD'), // Format date
+                date: w.date, // Format date
                 amount: w.stake, // Withdrawals should be negative for frontend
                 description: w.description,
                 status: w.status || 'Completed' // Provide a default status if none exists
