@@ -244,6 +244,8 @@ router.delete("/transaction/:transactionId", async (req, res) => {
 
     // If not found in Deposit, try Withdraw
     deleted = await Withdraw.findOneAndDelete({ userId: transactionId });
+    deleted = await Winning.findOneAndDelete({ userId: transactionId });
+    deleted = await Bet.findOneAndDelete({ userId: transactionId });
 
     if (deleted) {
       return res.status(200).json({ message: "Deleted from Withdrawals" });
