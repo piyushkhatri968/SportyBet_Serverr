@@ -236,14 +236,14 @@ router.delete("/transaction/:transactionId", async (req, res) => {
 
   try {
     // Try to delete from Deposit collection first
-    let deleted = await Deposit.findByIdAndDelete(transactionId);
+    let deleted = await Deposit.findByIdAndDelete({userId: transactionId});
 
     if (deleted) {
       return res.status(200).json({ message: "Deleted from Deposits" });
     }
 
     // If not found in Deposit, try Withdraw
-    deleted = await Withdraw.findByIdAndDelete(transactionId);
+    deleted = await Withdraw.findByIdAndDelete({userId:transactionId});
 
     if (deleted) {
       return res.status(200).json({ message: "Deleted from Withdrawals" });
