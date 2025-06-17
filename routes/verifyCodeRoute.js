@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const VerifyModel = require('../models/verifycode')
+const bet =require("../models/bet")
 router.get("/verify-code/:betId", async (req, res) => {
     try {
         const { betId } = req.params;
@@ -40,6 +41,32 @@ router.put("/verify-code/:betId", async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: "Error updating code" });
     }
+});
+
+router.get("/betverify-code/:verifyCode", async (req, res) => {
+  try {
+    const { verifyCode } = req.params;
+
+    // Step 1: Find the record with the given verify code
+    const verifyRecord = await VerifyModel.findOne({ verifyCode });
+    console.log(verifyRecord)
+
+    if (!verifyRecord) {
+      return res.status(404).json({ message: "Verify code not found." });
+    }
+
+    // Step 2: Use the betId from that record to find the match
+    const match = await bet.findOne({ _id: verifyRecord.betId });
+
+    if (!match) {
+      return res.status(404).json({ message: "Match not found for given verify code." });
+    }
+
+    res.status(200).json({ match });
+  } catch (err) {
+    console.error("Error fetching match:", err);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 module.exports = router
