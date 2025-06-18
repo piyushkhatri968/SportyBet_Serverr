@@ -241,6 +241,28 @@ router.delete("/aLLbets/:userId", async (req, res) => {
   }
 });
 
+router.get("/bets/booking/:bookingCode", async (req, res) => {
+  try {
+    const { bookingCode } = req.params;
 
-  
+    // 12 hours ago timestamp
+    // const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+
+    const bet = await Bet.findOne({
+      bookingCode,
+      bookingCode: { $ne: "AASDSAD" }, // Exclude default
+      // timestamp: { $gte: twelveHoursAgo },
+    });
+
+    if (!bet) {
+      return res.status(404).json({ message: "No recent bet found with this booking code" });
+    }
+
+    res.status(200).json(bet);
+  } catch (error) {
+    console.error("Error fetching bet:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;
