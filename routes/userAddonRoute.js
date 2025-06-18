@@ -18,19 +18,20 @@ router.post("/addon/buy", async (req, res) => {
     const existing = await UserAddon.findOne({ userId, addonId });
 
     if (existing) {
-      // Toggle active status
-      existing.isActive = !existing.isActive;
+      // Toggle status between 'active' and 'inactive'
+      existing.status = existing.status === 'active' ? 'inactive' : 'active';
       await existing.save();
       return res.json({
-        message: `Addon has been ${existing.isActive ? "activated" : "deactivated"}`,
+        message: `Addon has been ${existing.status}`,
         addon: existing,
       });
     }
 
+    // New Addon Purchase
     const newUserAddon = new UserAddon({
       userId,
       addonId,
-      isActive: true,
+      status: 'active', // correct enum value
     });
 
     await newUserAddon.save();
@@ -45,22 +46,31 @@ router.post("/addon/buy", async (req, res) => {
   }
 });
 
+
 // routes/userAddons.js
+// GET: All addons with user-specific active status
 router.get("/all/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
     const [addons, userAddons] = await Promise.all([
       Addon.find(),
-      UserAddon.find({ userId }).select("addonId")
+      UserAddon.find({ userId }).select("addonId status")
     ]);
 
-    const activeAddonIds = userAddons.map((ua) => ua.addonId.toString());
+    // Create a map of addonId => status
+    const addonStatusMap = {};
+    userAddons.forEach((ua) => {
+      addonStatusMap[ua.addonId.toString()] = ua.status;
+    });
 
-    const result = addons.map((addon) => ({
-      ...addon._doc,
-      isActive: addon.price === 0 || activeAddonIds.includes(addon._id.toString())
-    }));
+    const result = addons.map((addon) => {
+      const status = addonStatusMap[addon._id.toString()];
+      return {
+        ...addon._doc,
+        isActive: status === "active"
+      };
+    });
 
     res.json(result);
   } catch (err) {
@@ -68,6 +78,7 @@ router.get("/all/:userId", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 
 module.exports = router;
