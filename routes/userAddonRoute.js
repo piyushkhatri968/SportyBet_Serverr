@@ -5,21 +5,40 @@ const UserAddon = require("../models/UserAddon");
 const Addon = require("../models/Addon");
 
 // POST: user buys addon
-router.post("/buy", async (req, res) => {
+router.post("/addon/buy", async (req, res) => {
   const { userId, addonId } = req.body;
 
   try {
     const addon = await Addon.findById(addonId);
     if (!addon) return res.status(404).json({ message: "Addon not found" });
-    if (addon.price === 0) return res.status(400).json({ message: "This addon is free" });
 
-    const alreadyBought = await UserAddon.findOne({ userId, addonId });
-    if (alreadyBought) return res.status(400).json({ message: "Addon already purchased" });
+    if (addon.price === 0)
+      return res.status(400).json({ message: "This addon is free" });
 
-    const newUserAddon = new UserAddon({ userId, addonId });
+    const existing = await UserAddon.findOne({ userId, addonId });
+
+    if (existing) {
+      // Toggle active status
+      existing.isActive = !existing.isActive;
+      await existing.save();
+      return res.json({
+        message: `Addon has been ${existing.isActive ? "activated" : "deactivated"}`,
+        addon: existing,
+      });
+    }
+
+    const newUserAddon = new UserAddon({
+      userId,
+      addonId,
+      isActive: true,
+    });
+
     await newUserAddon.save();
 
-    res.json({ message: "Addon purchased successfully", addon: newUserAddon });
+    res.json({
+      message: "Addon purchased and activated successfully",
+      addon: newUserAddon,
+    });
   } catch (err) {
     console.error("Error:", err);
     res.status(500).json({ message: "Server error" });
