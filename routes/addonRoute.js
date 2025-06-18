@@ -25,7 +25,7 @@ router.post("/addons/bulk", async (req, res) => {
 // Create multiple addons at once
 router.get("/addons", async (req, res) => {
   try {
-    const addons = await Addon.find({ status: "active" });
+    const addons = await Addon.find();
     res.json(addons);
   } catch (err) {
     res.status(500).json({ message: "Failed to load addons" });
