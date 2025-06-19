@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const Otp = require("../models/otp");
 const User = require("../models/user");
 const authMiddleware = require("../middleware/authMiddleware");
+const UserImage = require("../models/UserImage")
 
 const router = express.Router();
 const SECRET_KEY = "your_secret_key"; // Change this to a secure secret
@@ -118,7 +119,14 @@ router.post("/register", async (req, res) => {
     });
 
     await newUser.save();
-    console.log(newUser);
+     const defaultImage = await proImage.findById("6852f6aee22eb68b08ddee6d");
+    const userImage = new UserImage({
+        user: newUser._id,
+        image: defaultImage._id,
+    })
+
+    await userImage.save();
+
     res
       .status(201)
       .json({ success: true, message: "User registered successfully" });
