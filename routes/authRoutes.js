@@ -51,115 +51,140 @@ router.post("/verify-otp", async (req, res) => {
 });
 
 router.post("/register", async (req, res) => {
-  const { name, password, username, email, expiryDate, subscription, role } =
-    req.body;
+  const {
+    name,
+    password,
+    username,
+    email,
+    expiryDate,
+    subscription,
+    role,
+    mobileNumber, // ✅ included
+  } = req.body;
+
+  console.log(req.body)
+
+  // ✅ Validation
+  if (
+    !name || !password || !username || !email ||
+    !expiryDate || !subscription || !role || !mobileNumber
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "All fields are required including mobile number.",
+    });
+  }
 
   try {
-    if (
-      !name ||
-      name.trim() === "" ||
-      !password ||
-      password.trim() === "" ||
-      !username ||
-      username.trim() === "" ||
-      !email ||
-      email.trim() === "" ||
-      !expiryDate ||
-      expiryDate.trim() === "" ||
-      !role ||
-      role.trim() === ""
-    ) {
-      return res
-        .status(400)
-        .json({ success: false, message: "All fields are required." });
-    }
-    if (expiryDate === "none") {
-      return res
-        .status(400)
-        .json({ success: false, message: "Select expiry period" });
-    }
-    // Check if user already exists with the same username, email, or mobileNumber
-    const existingUserUsingEmail = await User.findOne({ email });
+    // ✅ Check for existing user (username, email, mobile)
+    const existingUser = await User.findOne({
+      $or: [{ username }, { email }, { mobileNumber }]
+    });
 
-    if (existingUserUsingEmail) {
+    if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: "User with this email already exists",
+        message: "Username, email, or mobile number already exists.",
       });
     }
 
-    const existingUserUsingUsername = await User.findOne({ username });
+    // ✅ Password hash
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    if (existingUserUsingUsername) {
-      return res.status(400).json({
-        success: false,
-        message: "User with this username already exists",
-      });
-    }
-
-    // Hash password before storing
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const expiryDays = Number(expiryDate);
-    // Set default values
-    const expiry = new Date();
-    expiry.setDate(expiry.getDate() + expiryDays);
-
-    const grandAuditLimit = 2000000.0; // Default value for grand audit limit
-
-    // Store user in DB
+    // ✅ Create new user
     const newUser = new User({
       name,
       password: hashedPassword,
       username,
       email,
+      mobileNumber, // ✅ stored here
       subscription,
-      expiry,
-      grandAuditLimit,
+      expiry: expiryDate,
       role,
     });
 
     await newUser.save();
-     const defaultImage = await proImage.findOne();
-    const userImage = new UserImage({
-        user: newUser._id,
-        image: defaultImage._id,
-    })
 
-    await userImage.save();
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      user: {
+        _id: newUser._id,
+        name: newUser.name,
+        username: newUser.username,
+        email: newUser.email,
+        mobileNumber: newUser.mobileNumber,
+        role: newUser.role,
+      },
+    });
 
-    res
-      .status(201)
-      .json({ success: true, message: "User registered successfully" });
-  } catch (error) {
-    console.error("Registration error:", error);
+  } catch (err) {
+    console.error("Error registering user:", err);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
+
+
+
 
 /**
  * 4️⃣ Login API
  */
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+  const { identifier, password } = req.body; // identifier can be email, username, or mobile number
 
-  // Check if user exists
-  const user = await User.findOne({ email });
-  if (!user) return res.status(400).json({ error: "User not found" });
+  if (!identifier || !password) {
+    return res.status(400).json({ success: false, message: "Both fields are required" });
+  }
 
-  // Verify password
-  const isMatch = await bcrypt.compare(password, user.password);
-  if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
+  try {
+    // ✅ Try finding user by email, username, or mobileNumber
+    const user = await User.findOne({
+      $or: [
+        { email: identifier },
+        { username: identifier },
+        { mobileNumber: identifier },
+      ],
+    });
 
-  // Generate JWT token
-  const token = jwt.sign({ id: user._id, email: user.email }, SECRET_KEY, {
-    expiresIn: "7d",
-  });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
 
-  // Store the new token in the database
-  await User.findByIdAndUpdate(user._id, { token });
+    // ✅ Verify password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
 
-  res.json({ success: true, message: "Login successful", token });
+    // ✅ Generate JWT
+    const token = jwt.sign({ id: user._id, email: user.email }, SECRET_KEY, {
+      expiresIn: "7d",
+    });
+
+    // ✅ Save token in DB
+    await User.findByIdAndUpdate(user._id, { token });
+
+    res.status(200).json({
+      success: true,
+      message: "Login successful",
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        mobileNumber: user.mobileNumber,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
 });
+
 
 router.get("/user/profile", authMiddleware, async (req, res) => {
   try {
