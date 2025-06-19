@@ -4,7 +4,6 @@ const router = express.Router();
 const BetModel = require("../models/bet");
 const BookingModel = require("../models/BookingCode"); // ✅ NEW
 
-
 router.post("/place", async (req, res) => {
   const { betId, stake } = req.body;
 
@@ -24,14 +23,13 @@ router.post("/place", async (req, res) => {
       return res.status(404).json({ message: "Bet not found" });
     }
 
-    // ✅ Generate and store booking code separately
-  
+    // ✅ Check if booking already exists
+    const existingBooking = await BookingModel.findOne({ betId });
 
-    const newBooking = new BookingModel({
-      betId
-    });
-
-    await newBooking.save();
+    if (!existingBooking) {
+      const newBooking = new BookingModel({ betId });
+      await newBooking.save();
+    }
 
     res.status(200).json({
       message: "Bet placed successfully",
