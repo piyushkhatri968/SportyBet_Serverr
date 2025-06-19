@@ -119,7 +119,7 @@ router.post("/register", async (req, res) => {
     });
 
     await newUser.save();
-     const defaultImage = await proImage.findById("6852f6aee22eb68b08ddee6d");
+     const defaultImage = await proImage.findOne();
     const userImage = new UserImage({
         user: newUser._id,
         image: defaultImage._id,
