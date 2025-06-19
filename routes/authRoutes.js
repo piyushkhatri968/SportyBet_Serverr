@@ -126,44 +126,59 @@ router.post("/register", async (req, res) => {
 });
 
 
-
-
-/**
- * 4️⃣ Login API
- */
 router.post("/login", async (req, res) => {
-  const { identifier, password } = req.body; // identifier can be email, username, or mobile number
+  const { identifier, password } = req.body;
 
   if (!identifier || !password) {
-    return res.status(400).json({ success: false, message: "Both fields are required" });
+    return res.status(400).json({
+      success: false,
+      message: "Both identifier and password are required",
+    });
   }
 
   try {
-    // ✅ Try finding user by email, username, or mobileNumber
+    // Find user by the identifier in *any* of the fields
     const user = await User.findOne({
       $or: [
-        { email: identifier },
-        { username: identifier },
         { mobileNumber: identifier },
+        { username: identifier },
+        { email: identifier },
       ],
     });
 
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
     }
 
-    // ✅ Verify password
+    // Now check if the identifier matches their chosen login method
+    const method = user.loginMethod;
+    const isIdentifierValid =
+      (method === "mobileNumber" && user.mobileNumber === identifier) ||
+      (method === "username" && user.username === identifier) ||
+      (method === "email" && user.email === identifier);
+
+    if (!isIdentifierValid) {
+      return res.status(400).json({
+        success: false,
+        message: `Please login using your preferred login method (${method})`,
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
+      return res.status(401).json({
+        success: false,
+        message: "Invalid credentials",
+      });
     }
 
-    // ✅ Generate JWT
     const token = jwt.sign({ id: user._id, email: user.email }, SECRET_KEY, {
       expiresIn: "7d",
     });
 
-    // ✅ Save token in DB
     await User.findByIdAndUpdate(user._id, { token });
 
     res.status(200).json({
@@ -173,9 +188,10 @@ router.post("/login", async (req, res) => {
       user: {
         _id: user._id,
         name: user.name,
-        email: user.email,
         username: user.username,
+        email: user.email,
         mobileNumber: user.mobileNumber,
+        loginMethod: user.loginMethod,
         role: user.role,
       },
     });
