@@ -6,16 +6,10 @@ const UserBalance = require("../models/UserBalance");
 const moment = require("moment");
 const Bet = require("../models/bet");
 const Winning = require("../models/winningModel");
-const twilio = require("twilio");
 const User = require("../models/user")
 
 // Twilio setup (Make sure your .env file contains these variables)
-const { Vonage } = require('@vonage/server-sdk');
-const vonage = new Vonage({
-  apiKey: '1c3a33e4',
-  apiSecret: 'GIY7m4NDK1APMvSR'
-});
-const vonageFromNumber = 'Vonage'; // Or your approved Vonage number or sender ID
+// // Or your approved Vonage number or sender ID
 
 // 📥 POST /api/wallet/deposit
 router.post("/deposit", async (req, res) => {
@@ -61,22 +55,7 @@ router.post("/withdraw", async (req, res) => {
     await userBalance.save();
 
     const user = await User.findById(userId);
-    if (user?.mobileNumber) {
-      const toNumber = user.mobileNumber;
-      const text = `✅ Your withdrawal of ${amount} ${currencyType} was successful. Remaining balance: ${userBalance.amount.toFixed(2)} ${currencyType}.`;
-
-      vonage.sms.send({
-        to: toNumber,
-        from: vonageFromNumber,
-        text: text,
-      }, (err, responseData) => {
-        if (err) {
-          console.error("Vonage SMS Error:", err);
-        } else {
-          console.log("Vonage SMS sent:", responseData);
-        }
-      });
-    }
+  
 
     res.status(200).json({ message: "Withdrawal successful", amount: userBalance });
   } catch (error) {
