@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const Deposit = require("../models/deposite");
 const User = require("../models/user"); // ensure you have the User model
-const twilio = require("twilio");
 
 
 // ============================
