@@ -3,6 +3,7 @@ const router = express.Router();
 const Bet = require("../models/multibets");
 const oddModel = require("../models/bet")
 const cashout = require("../models/cashOut")
+const VerifyCode = require("../models/verifycode");
 
 
 router.post("/multibets", async (req, res) => {
@@ -159,6 +160,7 @@ router.get("/multibets/:userId", async (req, res) => {
         if (!updatedBet) {
             return res.status(404).json({ message: "Bet not found." });
         }
+        
 
         res.json(updatedBet); // ✅ Added this to return the updated bet
     } catch (error) {

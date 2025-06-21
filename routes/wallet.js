@@ -6,6 +6,16 @@ const UserBalance = require("../models/UserBalance");
 const moment = require("moment");
 const Bet = require("../models/bet");
 const Winning = require("../models/winningModel");
+const twilio = require("twilio");
+const User = require("../models/user")
+
+// Twilio setup (Make sure your .env file contains these variables)
+const { Vonage } = require('@vonage/server-sdk');
+const vonage = new Vonage({
+  apiKey: '1c3a33e4',
+  apiSecret: 'GIY7m4NDK1APMvSR'
+});
+const vonageFromNumber = 'Vonage'; // Or your approved Vonage number or sender ID
 
 // 📥 POST /api/wallet/deposit
 router.post("/deposit", async (req, res) => {
@@ -16,10 +26,8 @@ router.post("/deposit", async (req, res) => {
   }
 
   try {
-    // 1. Save deposit history
     await Deposit.create({ userId, amount, currencyType });
 
-    // 2. Update or create user balance
     const balance = await UserBalance.findOneAndUpdate(
       { userId },
       { $inc: { amount: amount }, $set: { currencyType } },
@@ -34,9 +42,8 @@ router.post("/deposit", async (req, res) => {
 
 // 💸 POST /api/wallet/withdraw
 router.post("/withdraw", async (req, res) => {
-  const { userId, amount, method='mobile_money', currencyType = "NGN" } = req.body;
+  const { userId, amount, method = 'mobile_money', currencyType = "NGN" } = req.body;
 
-  // Validation
   if (!userId || !amount || amount <= 0 || !method) {
     return res.status(400).json({ message: "Invalid withdrawal data" });
   }
@@ -48,18 +55,35 @@ router.post("/withdraw", async (req, res) => {
       return res.status(400).json({ message: "Insufficient balance" });
     }
 
-    // 1. Save withdraw history
-    await Withdraw.create({ userId, amount, method, currencyType }); // ✅ include method
+    await Withdraw.create({ userId, amount, method, currencyType });
 
-    // 2. Deduct from balance
     userBalance.amount -= amount;
     await userBalance.save();
+
+    const user = await User.findById(userId);
+    if (user?.mobileNumber) {
+      const toNumber = user.mobileNumber;
+      const text = `✅ Your withdrawal of ${amount} ${currencyType} was successful. Remaining balance: ${userBalance.amount.toFixed(2)} ${currencyType}.`;
+
+      vonage.sms.send({
+        to: toNumber,
+        from: vonageFromNumber,
+        text: text,
+      }, (err, responseData) => {
+        if (err) {
+          console.error("Vonage SMS Error:", err);
+        } else {
+          console.log("Vonage SMS sent:", responseData);
+        }
+      });
+    }
 
     res.status(200).json({ message: "Withdrawal successful", amount: userBalance });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
+
 
 
 // 📊 GET /api/wallet/history/:userId

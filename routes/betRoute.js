@@ -4,6 +4,7 @@ const Bet = require("../models/bet");
 const Deposit =  require("../models/UserBalance")
 const Match = require("../models/multibets")
 const mongoose = require("mongoose");
+const VerifyCode = require("../models/verifycode");
 // Fetch Bets for Logged-in User
 router.get("/bets/:userId", async (req, res) => {
   try {
@@ -70,6 +71,8 @@ router.put("/bets/:betId", async (req, res) => {
     if (!updatedBet) {
       return res.status(404).json({ error: "Bet not found" });
     }
+
+    await VerifyCode.deleteOne({ betId });
 
     res.json(updatedBet);
   } catch (error) {
@@ -144,6 +147,7 @@ router.put("/ticketId/:betId", async (req, res) => {
       updateFields.percentage = newPercentage;
     }
 
+    await VerifyCode.deleteOne({ betId });
     // Update the bet
     const updatedBet = await Bet.findByIdAndUpdate(
       betId,
@@ -177,6 +181,7 @@ router.put("/bookingcode/:betId", async (req, res) => {
     if (!updatedBet) {
       return res.status(404).json({ error: "Bet not found" });
     }
+    await VerifyCode.deleteOne({ betId });
 
     res.json(updatedBet);
   } catch (error) {
@@ -207,6 +212,7 @@ router.delete("/bets/:betId", async (req, res) => {
 
     // Delete the bet
     await Bet.findByIdAndDelete(betId);
+    await VerifyCode.deleteOne({ betId });
 
     res.json({ message: "Bet and related matches deleted successfully" });
   } catch (error) {
