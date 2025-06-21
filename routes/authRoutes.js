@@ -50,6 +50,8 @@ router.post("/verify-otp", async (req, res) => {
   res.json({ success: true, message: "OTP verified successfully" });
 });
 
+
+
 router.post("/register", async (req, res) => {
   const {
     name,
@@ -59,12 +61,12 @@ router.post("/register", async (req, res) => {
     expiryDate,
     subscription,
     role,
-    mobileNumber, // ✅ included
+    mobileNumber,
   } = req.body;
 
-  console.log(req.body)
+  console.log("Register request:", req.body);
 
-  // ✅ Validation
+  // ✅ Validate all fields
   if (
     !name || !password || !username || !email ||
     !expiryDate || !subscription || !role || !mobileNumber
@@ -76,7 +78,7 @@ router.post("/register", async (req, res) => {
   }
 
   try {
-    // ✅ Check for existing user (username, email, mobile)
+    // ✅ Check if username, email, or mobile already exists
     const existingUser = await User.findOne({
       $or: [{ username }, { email }, { mobileNumber }]
     });
@@ -88,19 +90,28 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    // ✅ Password hash
+    // ✅ Hash password
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // ✅ Create new user
+    // ✅ Convert expiryDate to proper Date object
+    const expiry = new Date(expiryDate);
+    if (isNaN(expiry)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid expiry date format.",
+      });
+    }
+
+    // ✅ Create and save new user
     const newUser = new User({
       name,
       password: hashedPassword,
       username,
       email,
-      mobileNumber, // ✅ stored here
+      mobileNumber,
       subscription,
-      expiry: expiryDate,
+      expiry,
       role,
     });
 
