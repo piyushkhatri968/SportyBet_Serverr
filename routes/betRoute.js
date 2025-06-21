@@ -16,39 +16,50 @@ router.get("/bets/:userId", async (req, res) => {
   }
 });
 
+const generateBookingCode = (length = 8) => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
 // Add a Bet
 router.post("/bets", async (req, res) => {
-    try {
-      const { userId, date, betCode, stake, odd } = req.body;
-  
-      // Validate required fields
-      if (!userId || !date || !betCode || !stake) {
-        return res.status(400).json({ error: "All fields are required" });
-      }
+  try {
+    const { userId, date, betCode, stake, odd } = req.body;
 
-  
-      // Validate data types
-      if (isNaN(stake) || stake <= 0) {
-        return res.status(400).json({ error: "Invalid stake value" });
-      }
+    // Validate required fields
+    if (!userId || !date || !betCode || !stake) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
 
-      const deposit = await Deposit.findOne({ userId });
+    if (isNaN(stake) || stake <= 0) {
+      return res.status(400).json({ error: "Invalid stake value" });
+    }
+
+    const deposit = await Deposit.findOne({ userId });
 
     if (!deposit || deposit.amount < stake) {
       return res.status(400).json({ message: "Insufficient balance" });
     }
+
     deposit.amount -= stake;
     await deposit.save();
 
-      const newBet = new Bet({ userId, date, betCode, stake, odd });
-      const savedBet = await newBet.save();
-    
-      res.status(201).json(savedBet);
-    } catch (error) {
-      console.error("Error adding bet:", error.message);
-      res.status(500).json({ error: "Internal server error", details: error.message });
-    }
-  });
+    // Generate unique booking code
+    const bookingCode = generateBookingCode();
+
+    const newBet = new Bet({ userId, date, betCode, stake, odd, bookingCode });
+    const savedBet = await newBet.save();
+
+    res.status(201).json(savedBet);
+  } catch (error) {
+    console.error("Error adding bet:", error.message);
+    res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+});
 
   // Update Odd for a Bet
 router.put("/bets/:betId", async (req, res) => {
