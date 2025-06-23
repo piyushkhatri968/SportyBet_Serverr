@@ -464,4 +464,40 @@ router.get("/user/:id", async (req, res) => {
   }
 });
 
+router.patch("/update-status/:userId", async (req, res) => {
+  const { userId } = req.params;
+  const { status } = req.body;
+
+  if (!["Active", "Hold"].includes(status)) {
+    return res.status(400).json({ error: "Invalid status. Must be 'Active' or 'Hold'." });
+  }
+
+  try {
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { accountStatus: status },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    res.json({
+      message: `User status updated to '${status}'.`,
+      user: {
+        id: updatedUser._id,
+        name: updatedUser.name,
+        mobileNumber: updatedUser.mobileNumber,
+        accountStatus: updatedUser.accountStatus,
+      },
+    });
+  } catch (error) {
+    console.error("Error updating user status:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+
 module.exports = router;
+
