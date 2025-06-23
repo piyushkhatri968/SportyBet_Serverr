@@ -63,7 +63,7 @@ app.use("/api", BookingRoutes);
 
 // Connect to MongoDB (replace with your own URI)
 mongoose
-  .connect(process.env.MONGO_URL, {
+  .connect(process.env.MONGO_URL , {
     // useNewUrlParser: true,
     // useUnifiedTopology: true,
   })

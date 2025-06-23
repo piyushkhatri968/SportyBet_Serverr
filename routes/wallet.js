@@ -13,7 +13,7 @@ const User = require("../models/user")
 
 // 📥 POST /api/wallet/deposit
 router.post("/deposit", async (req, res) => {
-  const { userId, amount, currencyType = "NGN" } = req.body;
+  const { userId, amount, currencyType = "GHS" } = req.body;
 
   if (!userId || !amount || amount <= 0) {
     return res.status(400).json({ message: "Invalid deposit data" });
@@ -204,7 +204,7 @@ router.get("/deposite/:userId", async (req, res) => {
 
     res.status(200).json({ balance });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    // res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
