@@ -498,6 +498,31 @@ router.patch("/update-status/:userId", async (req, res) => {
   }
 });
 
+router.post("/update-profile", async (req, res) => {
+  const { userId, username, amount, phone, email, imageUrl } = req.body;
+
+  try {
+    // Update User data
+    await User.findByIdAndUpdate(userId, {
+      username,
+      amount,
+      phone,
+      email,
+    });
+
+    // Update User image
+    await UserImage.findOneAndUpdate(
+      { userId },
+      { image: imageUrl }, // or full path
+      { upsert: true }
+    );
+
+    return res.json({ success: true, message: "Profile updated" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ success: false, message: "Update failed" });
+  }
+});
 
 module.exports = router;
 
