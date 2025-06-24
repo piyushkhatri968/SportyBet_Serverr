@@ -5,6 +5,7 @@ const Otp = require("../models/otp");
 const User = require("../models/user");
 const authMiddleware = require("../middleware/authMiddleware");
 const UserImage = require("../models/UserImage")
+const Balance = require("../models/UserBalance")
 
 const router = express.Router();
 const SECRET_KEY = "your_secret_key"; // Change this to a secure secret
@@ -505,10 +506,13 @@ router.post("/update-profile", async (req, res) => {
     // Update User data
     await User.findByIdAndUpdate(userId, {
       username,
-      amount,
       phone,
       email,
     });
+
+    await Balance.findByIdAndUpdate(userId,{
+      amount
+    })
 
     // Update User image
     await UserImage.findOneAndUpdate(
