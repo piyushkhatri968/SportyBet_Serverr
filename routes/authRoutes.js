@@ -499,34 +499,38 @@ router.patch("/update-status/:userId", async (req, res) => {
   }
 });
 
-router.post("/update-profile", async (req, res) => {
+rrouter.post("/update-profile", async (req, res) => {
   const { userId, username, amount, phone, email, imageUrl } = req.body;
 
   try {
-    // Update User data
+    // Update user basic info
     await User.findByIdAndUpdate(userId, {
       username,
-      phone,
+      mobileNumber: phone,  // ✅ match your schema field
       email,
     });
 
-    await Balance.findByIdAndUpdate(userId,{
-      amount
-    })
+    // ✅ Correct: find balance by userId field, not by _id
+    await Balance.findOneAndUpdate(
+      { userId },  // assuming Balance schema has userId field
+      { amount },
+      { upsert: true }  // Optional: create if not exist
+    );
 
-    // Update User image
+    // ✅ Update or create user image
     await UserImage.findOneAndUpdate(
       { userId },
-      { image: imageUrl }, // or full path
+      { image: imageUrl },
       { upsert: true }
     );
 
     return res.json({ success: true, message: "Profile updated" });
   } catch (err) {
-    console.error(err);
+    console.error("Update error:", err);
     return res.status(500).json({ success: false, message: "Update failed" });
   }
 });
+
 
 module.exports = router;
 
