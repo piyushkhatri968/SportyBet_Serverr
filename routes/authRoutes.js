@@ -499,7 +499,7 @@ router.patch("/update-status/:userId", async (req, res) => {
   }
 });
 
-rrouter.post("/update-profile", async (req, res) => {
+router.post("/update-profile", async (req, res) => {
   const { userId, username, amount, phone, email, imageUrl } = req.body;
 
   try {
