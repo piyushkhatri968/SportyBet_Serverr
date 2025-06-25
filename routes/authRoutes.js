@@ -500,44 +500,31 @@ router.patch("/update-status/:userId", async (req, res) => {
 });
 
 router.post("/update-profile", async (req, res) => {
-  const { userId, username, amount, phone, email, imageUrl } = req.body;
+  const { userId, username, amount, phone, email, userIcon } = req.body;
 
   try {
-    // ✅ 1. Update user info
-    const userUpdate = await User.findByIdAndUpdate(
-      userId,
-      {
-        username,
-        mobileNumber: phone,
-        email,
-      },
-      { new: true, runValidators: true }
-    );
+    // ✅ Update user basic info
+    await User.findByIdAndUpdate(userId, {
+      username,
+      mobileNumber: phone,
+      email,
+      userIcon,  // ✅ store avatar here
+    });
 
-    if (!userUpdate) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    // ✅ 2. Update balance (create if not exists)
+    // ✅ Update or create balance
     await Balance.findOneAndUpdate(
       { userId },
       { amount },
       { upsert: true, new: true }
     );
 
-    // ✅ 3. Update user image (create if not exists)
-    await UserImage.findOneAndUpdate(
-      { user: userId }, // 🔁 must match the schema field
-      { image: imageUrl }, // 🔁 still assuming it's a URL, but your schema says ObjectId!
-      { upsert: true, new: true }
-    );
-
     return res.json({ success: true, message: "Profile updated" });
   } catch (err) {
-    console.error("Update error:", err.message);
-    return res.status(500).json({ success: false, message: "Update failed", error: err.message });
+    console.error("Update error:", err);
+    return res.status(500).json({ success: false, message: "Update failed" });
   }
 });
+
 
 
 
