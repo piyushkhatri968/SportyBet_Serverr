@@ -500,12 +500,12 @@ router.patch("/update-status/:userId", async (req, res) => {
 });
 
 router.post("/update-profile", async (req, res) => {
-  const { userId, username, amount, phone, email, userIcon } = req.body;
+  const { userId, name, amount, phone, email, userIcon } = req.body;
 
   try {
     // ✅ Update user basic info
     await User.findByIdAndUpdate(userId, {
-      username,
+      name,
       mobileNumber: phone,
       email,
       userIcon,  // ✅ store avatar here
