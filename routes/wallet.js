@@ -200,7 +200,7 @@ router.get("/deposite/:userId", async (req, res) => {
   try {
     const balance = await UserBalance.findOne({ userId: req.params.userId });
 
-    if (!balance) return res.status(404).json({ message: "No balance found" });
+    // if (!balance) return res.status(404).json({ message: "No balance found" });
 
     res.status(200).json({ balance });
   } catch (error) {
