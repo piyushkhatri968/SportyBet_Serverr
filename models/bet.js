@@ -10,13 +10,13 @@ const betSchema = new mongoose.Schema({
   betCode: { type: String, required: true },
   stake: { type: Number, required: true },
   date: {
-    type: Date, // Changed from String to Date
+    type: Dat, // Format: "DD-MM"
     required: true,
   },
-  odd: { type: String, default: "0.1" },
-  bookingCode: { type: String, default: "AASDSAD" },
-  percentage: { type: Number, default: 10, min: 0, max: 100 }
+  odd: {type: String, default: 0.1},
+  bookingCode: {type:String, default: "AASDSAD"},
+  percentage: { type: Number, default: 10, min: 0, max: 100 } 
 });
 
 const Bet = mongoose.model("Bet", betSchema);
-module.exports = Bet;
+module.exports = Bet; // Ensure the export is correct
