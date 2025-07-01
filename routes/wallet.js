@@ -170,7 +170,7 @@ router.get("/history/:userId", async (req, res) => {
             })),
             ...bets.map(w => ({
                 id: w._id,
-                type: "bets", // Standardize type for frontend
+                type: "Bets - Real Sport", // Standardize type for frontend
                 date: w.date, // Format date
                 amount: w.stake, // Withdrawals should be negative for frontend
                 description: w.description,
