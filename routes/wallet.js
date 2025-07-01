@@ -84,6 +84,8 @@ router.get("/history/:userId", async (req, res) => {
     const { userId } = req.params;
     const { dateRange, category } = req.query;
 
+    console.log('Received Request:', { userId, dateRange, category });
+
     let filter = { userId: userId };
     let startDate, endDate;
 
@@ -142,7 +144,15 @@ router.get("/history/:userId", async (req, res) => {
             if (winnings.length > 0) console.log('Sample Winning:', winnings[0]);
         }
         if (!category || category === 'All Categories' || category === 'bets') {
-            bets = await Bet.find(filter).lean();
+            // Adjust filter for Bet collection (string-based date)
+            const betFilter = { ...filter };
+            if (filter.date) {
+                betFilter.date = {
+                    $gte: moment(filter.date.$gte).format('DD-MM'),
+                    $lte: moment(filter.date.$lte).format('DD-MM')
+                };
+            }
+            bets = await Bet.find(betFilter).lean();
             console.log(`Bets found: ${bets.length}`);
             if (bets.length > 0) console.log('Sample Bet:', bets[0]);
         }
@@ -184,7 +194,12 @@ router.get("/history/:userId", async (req, res) => {
         ];
 
         // Sort by date (most recent first)
-        combinedHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
+        combinedHistory.sort((a, b) => {
+            // Handle string dates for bets
+            const dateA = typeof a.date === 'string' ? parseStringDate(a.date) : new Date(a.date);
+            const dateB = typeof b.date === 'string' ? parseStringDate(b.date) : new Date(b.date);
+            return dateB - dateA;
+        });
 
         console.log('Combined History:', combinedHistory);
 
@@ -194,6 +209,14 @@ router.get("/history/:userId", async (req, res) => {
         res.status(500).json({ message: "Server error", error: error.message });
     }
 });
+
+// Helper to parse DD-MM string dates to Date objects for sorting
+const parseStringDate = (dateStr) => {
+    if (typeof dateStr !== 'string') return new Date(dateStr);
+    const [day, month] = dateStr.split('-').map(Number);
+    const year = new Date().getFullYear(); // Assume current year
+    return new Date(year, month - 1, day);
+};
 
 // 📟 GET /api/wallet/balance/:userId
 router.get("/deposite/:userId", async (req, res) => {
