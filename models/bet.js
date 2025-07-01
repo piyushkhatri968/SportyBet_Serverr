@@ -10,7 +10,7 @@ const betSchema = new mongoose.Schema({
   betCode: { type: String, required: true },
   stake: { type: Number, required: true },
   date: {
-    type: String, // Format: "DD-MM"
+    type: Date, // Format: "DD-MM"
     required: true,
   },
   odd: {type: String, default: 0.1},
