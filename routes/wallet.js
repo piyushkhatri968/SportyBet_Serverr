@@ -131,30 +131,22 @@ router.get("/history/:userId", async (req, res) => {
         if (!category || category === 'All Categories' || category === 'deposits') {
             deposits = await Deposit.find(filter).lean();
             console.log(`Deposits found: ${deposits.length}`);
+            if (deposits.length > 0) console.log('Sample Deposit:', deposits[0]);
         }
         if (!category || category === 'All Categories' || category === 'withdrawals') {
             withdrawals = await Withdraw.find(filter).lean();
             console.log(`Withdrawals found: ${withdrawals.length}`);
+            if (withdrawals.length > 0) console.log('Sample Withdrawal:', withdrawals[0]);
         }
         if (!category || category === 'All Categories' || category === 'winnings') {
             winnings = await Winning.find(filter).lean();
             console.log(`Winnings found: ${winnings.length}`);
+            if (winnings.length > 0) console.log('Sample Winning:', winnings[0]);
         }
         if (!category || category === 'All Categories' || category === 'bets') {
-            // Fallback for string-based dates (pre-migration)
-            const betFilter = { ...filter };
-            if (filter.date && typeof betFilter.date.$gte === 'object') {
-                betFilter.date = {
-                    $gte: moment(filter.date.$gte).format('DD-MM'),
-                    $lte: moment(filter.date.$lte).format('DD-MM')
-                };
-            }
             bets = await Bet.find(filter).lean();
             console.log(`Bets found: ${bets.length}`);
-            // Log sample bet documents for debugging
-            if (bets.length > 0) {
-                console.log('Sample Bet:', bets[0]);
-            }
+            if (bets.length > 0) console.log('Sample Bet:', bets[0]);
         }
 
         // 3. Combine and Map to a consistent format
@@ -194,12 +186,7 @@ router.get("/history/:userId", async (req, res) => {
         ];
 
         // Sort by date (most recent first)
-        combinedHistory.sort((a, b) => {
-            // Handle string dates for bets (pre-migration)
-            const dateA = typeof a.date === 'string' ? parseBetDate(a.date) : new Date(a.date);
-            const dateB = typeof b.date === 'string' ? parseBetDate(b.date) : new Date(b.date);
-            return dateB - dateA;
-        });
+        combinedHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         console.log('Combined History:', combinedHistory);
 
@@ -209,14 +196,6 @@ router.get("/history/:userId", async (req, res) => {
         res.status(500).json({ message: "Server error", error: error.message });
     }
 });
-
-// Helper to parse DD-MM strings to Date objects for sorting
-const parseBetDate = (dateStr) => {
-    if (typeof dateStr !== 'string') return new Date(dateStr);
-    const [day, month] = dateStr.split('-').map(Number);
-    const year = new Date().getFullYear(); // Assume current year
-    return new Date(year, month - 1, day);
-};
 
 // 📟 GET /api/wallet/balance/:userId
 router.get("/deposite/:userId", async (req, res) => {
