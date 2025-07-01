@@ -138,7 +138,7 @@ router.get("/history/:userId", async (req, res) => {
          if (!category || category === 'All Categories' || category === 'Winnings') {
             Winnings = await Winning.find(filter).lean();
         }
-         if (!category || category === 'All Categories' || category === 'Bets') {
+         if (!category || category === 'All Categories' || category === 'Bets - Real Sport') {
             bets = await Bet.find(filter).lean();
         }
 
