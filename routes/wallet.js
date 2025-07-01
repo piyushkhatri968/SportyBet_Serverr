@@ -144,12 +144,18 @@ router.get("/history/:userId", async (req, res) => {
             if (winnings.length > 0) console.log('Sample Winning:', winnings[0]);
         }
         if (!category || category === 'All Categories' || category === 'bets') {
-            // Adjust filter for Bet collection (string-based date)
+            // Adjust filter for Bet collection (string-based date in DD/MM or DD/MM, HH:mm)
             const betFilter = { ...filter };
             if (filter.date) {
+                // Extract date part only, ignoring time
                 betFilter.date = {
-                    $gte: moment(filter.date.$gte).format('DD-MM'),
-                    $lte: moment(filter.date.$lte).format('DD-MM')
+                    $gte: moment(filter.date.$gte).format('DD/MM'),
+                    $lte: moment(filter.date.$lte).format('DD/MM')
+                };
+                // Use regex to match DD/MM or DD/MM, HH:mm
+                betFilter.date = {
+                    $regex: `^(${moment(filter.date.$gte).format('DD/MM')}|${moment(filter.date.$lte).format('DD/MM')}|\\d{2}/\\d{2}(, \\d{2}:\\d{2})?$)`,
+                    $options: 'i'
                 };
             }
             bets = await Bet.find(betFilter).lean();
@@ -195,7 +201,7 @@ router.get("/history/:userId", async (req, res) => {
 
         // Sort by date (most recent first)
         combinedHistory.sort((a, b) => {
-            // Handle string dates for bets
+            // Handle string dates for bets (DD/MM or DD/MM, HH:mm)
             const dateA = typeof a.date === 'string' ? parseStringDate(a.date) : new Date(a.date);
             const dateB = typeof b.date === 'string' ? parseStringDate(b.date) : new Date(b.date);
             return dateB - dateA;
@@ -210,10 +216,12 @@ router.get("/history/:userId", async (req, res) => {
     }
 });
 
-// Helper to parse DD-MM string dates to Date objects for sorting
+// Helper to parse DD/MM or DD/MM, HH:mm string dates to Date objects for sorting
 const parseStringDate = (dateStr) => {
     if (typeof dateStr !== 'string') return new Date(dateStr);
-    const [day, month] = dateStr.split('-').map(Number);
+    // Handle both DD/MM and DD/MM, HH:mm
+    const datePart = dateStr.split(', ')[0]; // Get DD/MM part
+    const [day, month] = datePart.split('/').map(Number);
     const year = new Date().getFullYear(); // Assume current year
     return new Date(year, month - 1, day);
 };
