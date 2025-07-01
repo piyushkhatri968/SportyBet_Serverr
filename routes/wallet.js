@@ -164,7 +164,7 @@ router.get("/history/:userId", async (req, res) => {
                 id: w._id,
                 type: "Winnings", // Standardize type for frontend
                 date: w.date, // Format date
-                amount: w.amount * -1, // Withdrawals should be negative for frontend
+                amount: w.amount, // Withdrawals should be negative for frontend
                 description: w.description,
                 status: w.status || 'Completed' // Provide a default status if none exists
             })),
@@ -172,7 +172,7 @@ router.get("/history/:userId", async (req, res) => {
                 id: w._id,
                 type: "Bets - Real Sport", // Standardize type for frontend
                 date: w.date, // Format date
-                amount: w.stake, // Withdrawals should be negative for frontend
+                amount: w.stake * -1, // Withdrawals should be negative for frontend
                 description: w.description,
                 status: w.status || 'Completed' // Provide a default status if none exists
             })),
