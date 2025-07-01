@@ -69,13 +69,10 @@ router.post("/withdraw", async (req, res) => {
 const parseDateString = (dateStr) => {
     const parts = dateStr.split('/');
     if (parts.length === 3) {
-        // Assume YY format is 20YY, for current year's dates
-        // This logic might need refinement for years far in the past/future
         const day = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed in JS Date
         let year = parseInt(parts[2], 10);
         if (year < 100) {
-            // Simple logic for YY to YYYY. Adjust if your date logic needs to span centuries.
             year += (year > (new Date().getFullYear() % 100) + 10) ? 1900 : 2000;
         }
         return new Date(year, month, day);
@@ -85,7 +82,9 @@ const parseDateString = (dateStr) => {
 
 router.get("/history/:userId", async (req, res) => {
     const { userId } = req.params;
-    const { dateRange, category } = req.query; // Get query parameters
+    const { dateRange, category } = req.query;
+
+    console.log('Received Request:', { userId, dateRange, category });
 
     let filter = { userId: userId };
     let startDate, endDate;
@@ -93,102 +92,101 @@ router.get("/history/:userId", async (req, res) => {
     // 1. Handle Date Range Filtering
     if (dateRange) {
         if (dateRange.includes('-')) {
-            // Specific date range (e.g., "01/06/25-07/06/25")
             const [startStr, endStr] = dateRange.split('-');
             startDate = parseDateString(startStr);
             endDate = parseDateString(endStr);
 
             if (startDate && endDate) {
-                // Adjust endDate to include the whole day
                 endDate.setHours(23, 59, 59, 999);
             } else {
                 return res.status(400).json({ message: "Invalid dateRange format (DD/MM/YY-DD/MM/YY)." });
             }
         } else if (dateRange.startsWith('Last ')) {
-            // Relative date range (e.g., "Last 7 days", "Last 14 days", "Last 30 days")
             const numDays = parseInt(dateRange.replace('Last ', '').replace(' days', ''), 10);
             if (!isNaN(numDays)) {
-                endDate = moment().endOf('day').toDate(); // Today, end of day
-                // Subtract (numDays - 1) because "Last 7 days" includes today
+                endDate = moment().endOf('day').toDate();
                 startDate = moment().subtract(numDays - 1, 'days').startOf('day').toDate();
             } else {
-                // Default or error for unhandled relative ranges
                 return res.status(400).json({ message: "Invalid dateRange format for relative dates." });
             }
         }
-        // Apply date filter if dates are valid
         if (startDate && endDate) {
             filter.date = { $gte: startDate, $lte: endDate };
         }
+    } else {
+        endDate = moment().endOf('day').toDate();
+        startDate = moment().subtract(6, 'days').startOf('day').toDate();
+        filter.date = { $gte: startDate, $lte: endDate };
     }
+
+    console.log('MongoDB Filter:', filter);
 
     try {
         let deposits = [];
         let withdrawals = [];
-        let bets=[]
-        let Winnings=[]
+        let bets = [];
+        let winnings = [];
 
-        // 2. Handle Category Filtering (and apply date filter to individual queries)
-        if (!category || category === 'All Categories' || category === 'Deposits') {
+        // 2. Handle Category Filtering
+        if (!category || category === 'All Categories' || category === 'deposits') {
             deposits = await Deposit.find(filter).lean();
+            console.log(`Deposits found: ${deposits.length}`);
         }
-        if (!category || category === 'All Categories' || category === 'Withdrawals') {
+        if (!category || category === 'All Categories' || category === 'withdrawals') {
             withdrawals = await Withdraw.find(filter).lean();
+            console.log(`Withdrawals found: ${withdrawals.length}`);
         }
-         if (!category || category === 'All Categories' || category === 'Winnings') {
-            Winnings = await Winning.find(filter).lean();
+        if (!category || category === 'All Categories' || category === 'winnings') {
+            winnings = await Winning.find(filter).lean();
+            console.log(`Winnings found: ${winnings.length}`);
         }
-         if (!category || category === 'All Categories' || category === 'Bets - Real Sport') {
+        if (!category || category === 'All Categories' || category === 'bets') {
             bets = await Bet.find(filter).lean();
+            console.log(`Bets found: ${bets.length}`);
         }
 
         // 3. Combine and Map to a consistent format
         const combinedHistory = [
-            ...deposits.map(d => ({ 
-                id: d._id, // Keep original ID if needed
-                type: "Deposits", // Standardize type for frontend
-                date: d.date, // Format date
+            ...deposits.map(d => ({
+                id: d._id.toString(),
+                type: 'Deposits',
+                date: d.date,
                 amount: d.amount,
-                description: d.description,
-                status: d.status || 'Completed' // Provide a default status if none exists
+                description: d.description || 'Deposit',
+                status: d.status || 'Completed'
             })),
             ...withdrawals.map(w => ({
-                id: w._id,
-                type: "Withdrawals", // Standardize type for frontend
-                date: w.date, // Format date
-                amount: w.amount * -1, // Withdrawals should be negative for frontend
-                description: w.description,
-                status: w.status || 'Completed' // Provide a default status if none exists
+                id: w._id.toString(),
+                type: 'Withdrawals',
+                date: w.date,
+                amount: w.amount * -1,
+                description: w.description || 'Withdrawal',
+                status: w.status || 'Completed'
             })),
-             ...Winnings.map(w => ({
-                id: w._id,
-                type: "Winnings", // Standardize type for frontend
-                date: w.date, // Format date
-                amount: w.amount, // Withdrawals should be negative for frontend
-                description: w.description,
-                status: w.status || 'Completed' // Provide a default status if none exists
+            ...winnings.map(w => ({
+                id: w._id.toString(),
+                type: 'Winnings',
+                date: w.date,
+                amount: w.amount,
+                description: w.description || 'Winning',
+                status: w.status || 'Completed'
             })),
-            ...bets.map(w => ({
-                id: w._id,
-                type: "Bets - Real Sport", // Standardize type for frontend
-                date: w.date, // Format date
-                amount: w.stake * -1, // Withdrawals should be negative for frontend
-                description: w.description,
-                status: w.status || 'Completed' // Provide a default status if none exists
+            ...bets.map(b => ({
+                id: b._id.toString(),
+                type: 'Bets',
+                date: b.date,
+                amount: b.stake * -1,
+                description: b.description || 'Bet',
+                status: b.status || 'Completed'
             })),
         ];
 
         // Sort by date (most recent first)
-        combinedHistory.sort((a, b) => {
-            // Convert 'DD/MM/YY' back to Date objects for accurate sorting
-            const dateA = moment(a.date, 'DD/MM/YY').toDate();
-            const dateB = moment(b.date, 'DD/MM/YY').toDate();
-            return dateB.getTime() - dateA.getTime();
-        });
+        combinedHistory.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-        // 4. Send the array directly, as expected by your frontend FlatList
+        console.log('Combined History:', combinedHistory);
+
         res.status(200).json(combinedHistory);
-
     } catch (error) {
         console.error("Server error fetching history:", error);
         res.status(500).json({ message: "Server error", error: error.message });
