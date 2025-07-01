@@ -84,8 +84,6 @@ router.get("/history/:userId", async (req, res) => {
     const { userId } = req.params;
     const { dateRange, category } = req.query;
 
-    console.log('Received Request:', { userId, dateRange, category });
-
     let filter = { userId: userId };
     let startDate, endDate;
 
