@@ -191,7 +191,7 @@ router.get("/history/:userId", async (req, res) => {
             })),
             ...bets.map(b => ({
                 id: b._id.toString(),
-                type: 'Bets',
+                type: 'Bets - Real Sport',
                 date: b.date,
                 amount: b.stake * -1,
                 description: b.description || 'Bet',
