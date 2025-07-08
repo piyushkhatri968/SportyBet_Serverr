@@ -269,24 +269,39 @@ router.delete("/transaction/:transactionId", async (req, res) => {
   const { transactionId } = req.params;
 
   try {
-    // Try to delete from Deposit collection first
-    let deleted = await Deposit.findOneAndDelete({ _id: transactionId });
+    let deletedCount = 0;
 
-    if (deleted) {
-      return res.status(200).json({ message: "Deleted from Deposits" });
+    // Try to delete from Deposit collection
+    const depositResult = await Deposit.deleteOne({ _id: transactionId });
+    if (depositResult.deletedCount > 0) {
+      deletedCount++;
     }
 
-    // If not found in Deposit, try Withdraw
-    deleted = await Withdraw.findOneAndDelete({ _id: transactionId });
-    deleted = await Winning.findOneAndDelete({ _id: transactionId });
-    deleted = await Bet.findOneAndDelete({ _id: transactionId });
-
-    if (deleted) {
-      return res.status(200).json({ message: "Deleted from Withdrawals" });
+    // Try to delete from Withdraw collection
+    const withdrawResult = await Withdraw.deleteOne({ _id: transactionId });
+    if (withdrawResult.deletedCount > 0) {
+      deletedCount++;
     }
 
-    return res.status(404).json({ message: "Transaction not found in either collection" });
+    // Try to delete from Winning collection
+    const winningResult = await Winning.deleteOne({ _id: transactionId });
+    if (winningResult.deletedCount > 0) {
+      deletedCount++;
+    }
+
+    // Try to delete from Bet collection
+    const betResult = await Bet.deleteOne({ _id: transactionId });
+    if (betResult.deletedCount > 0) {
+      deletedCount++;
+    }
+
+    if (deletedCount > 0) {
+      return res.status(200).json({ message: "Transaction deleted successfully across collections.", deletedCount });
+    } else {
+      return res.status(404).json({ message: "Transaction not found in any collection." });
+    }
   } catch (error) {
+    console.error("Error deleting transaction:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
