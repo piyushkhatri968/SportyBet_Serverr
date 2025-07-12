@@ -6,6 +6,17 @@ const Match = require("../models/multibets")
 const mongoose = require("mongoose");
 const VerifyCode = require("../models/verifycode");
 // Fetch Bets for Logged-in User
+
+router.get("/bets", async (req, res) => {
+  try {
+    const bets = await Bet.find(); // Fetch all bets from DB
+    res.status(200).json(bets);
+  } catch (error) {
+    console.error("Error fetching all bets:", error.message);
+    res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+});
+
 router.get("/bets/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
@@ -278,4 +289,8 @@ router.get("/bets/booking/:bookingCode", async (req, res) => {
 });
 
 
+
+
 module.exports = router;
+
+
