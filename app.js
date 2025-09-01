@@ -21,6 +21,7 @@ const useraddonRoutes = require("./routes/userAddonRoute.js")
 const proImgRoutes = require("./routes/profileImageRoute.js")
 const userImgRoutes = require("./routes/UserImageRoute.js")
 const BookingRoutes = require("./routes/BookingRoute.js")
+const notification = require("./routes/notification.js")
 const path = require("path")
 
 // Middleware for parsing JSON
@@ -59,6 +60,7 @@ app.use("/api", useraddonRoutes);
 app.use("/api", proImgRoutes);
 app.use("/api", userImgRoutes);
 app.use("/api", BookingRoutes);
+app.use("/api", notification);
 
 const pushTokens = {};
 
