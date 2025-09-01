@@ -5,7 +5,7 @@ const NotificationBalance = require("../models/NotificationBalance.js");
 const router = express.Router();
 
 // ✅ Get user balance
-router.get("/:userId", async (req, res) => {
+router.get("/notification/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
     let balanceDoc = await NotificationBalance.findOne({ userId });
@@ -26,7 +26,7 @@ router.get("/:userId", async (req, res) => {
 });
 
 // ✅ Update balance (add or subtract)
-router.post("/update-balance", async (req, res) => {
+router.post("/notification/update-balance", async (req, res) => {
   try {
     const { userId, amount } = req.body;
 
