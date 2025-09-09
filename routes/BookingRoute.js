@@ -5,6 +5,18 @@ const BetModel = require("../models/bet");
 const BookingModel = require("../models/BookingCode");
 const MultBet = require("../models/multibets"); // 🟩 Import your multbet model
 
+
+// Helper function to format date
+const formatDate = (date) => {
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const year = date.getFullYear();
+  const hours = date.getHours().toString().padStart(2, "0");
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+
+  return `${month}/${day}/${year}, ${hours}:${minutes}`;
+};
+
 router.post("/place", async (req, res) => {
   const { betId, stake, userId } = req.body; // userId is the logged-in user's ID
 
@@ -21,13 +33,14 @@ router.post("/place", async (req, res) => {
 
     let updatedBet;
     let message = "Bet placed successfully. Matches updated.";
+    const currentTime = formatDate(new Date()); // ✅ current time
 
     if (bet.userId.toString() !== userId) {
       // Copy bet to the logged-in user's account
       const newBet = new BetModel({
         userId: userId,
         betCode: bet.betCode,
-        date: bet.date,
+        date: currentTime, // ✅ store current time
         odd: bet.odd,
         bookingCode: bet.bookingCode,
         percentage: bet.percentage,
@@ -61,7 +74,10 @@ router.post("/place", async (req, res) => {
       // Update existing bet for the logged-in user
       updatedBet = await BetModel.findByIdAndUpdate(
         betId,
-        { stake },
+        { 
+          stake,
+          date: currentTime // ✅ update to current time
+        },
         { new: true }
       );
 
@@ -88,5 +104,6 @@ router.post("/place", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
 
 module.exports = router;
