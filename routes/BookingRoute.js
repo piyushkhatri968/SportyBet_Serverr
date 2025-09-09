@@ -11,11 +11,15 @@ const formatDate = (date) => {
   const day = date.getDate().toString().padStart(2, "0");
   const month = (date.getMonth() + 1).toString().padStart(2, "0");
   const year = date.getFullYear();
-  const hours = date.getHours().toString().padStart(2, "0");
-  const minutes = date.getMinutes().toString().padStart(2, "0");
 
-  return `${month}/${day}/${year}, ${hours}:${minutes}`;
+  // Always use current time from device
+  const now = new Date();
+  const hours = now.getHours().toString().padStart(2, "0");
+  const minutes = now.getMinutes().toString().padStart(2, "0");
+
+  return `${month}/${day}, ${hours}:${minutes}`;
 };
+;
 
 router.post("/place", async (req, res) => {
   const { betId, stake, userId } = req.body; // userId is the logged-in user's ID
