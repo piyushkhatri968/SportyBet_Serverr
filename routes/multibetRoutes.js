@@ -44,7 +44,8 @@ router.post("/multibets", async (req, res) => {
             odd: bet?.odd || 1.0, // Default to 1.0 if missing
             createdAt: new Date(), // ✅ Store timestamp
             type:type,
-            userId1: userId1 || null
+            userId1: userId1 || null,
+            chatNumber: Math.floor(Math.random() * 100) + 1
         }));
 
         // ✅ Insert bets into MongoDB
@@ -99,7 +100,7 @@ router.post("/add-match", async (req, res) => {
     }
   
       // Save to MongoDB
-      const newMatch = new Bet({userId, gameId, dateTime, teams, userId1 });
+      const newMatch = new Bet({userId, gameId, dateTime, teams, userId1, chatNumber: Math.floor(Math.random() * 100) + 1 });
       await newMatch.save();
   
       res.status(201).json({ message: "Match added successfully", match: newMatch });
