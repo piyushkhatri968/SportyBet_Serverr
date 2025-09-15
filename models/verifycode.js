@@ -6,7 +6,6 @@ const verifySchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
-    expires: 43200 // 12 hours in seconds
   }
 });
 
