@@ -49,17 +49,28 @@ router.get("/betverify-code/:verifyCode", async (req, res) => {
 
     // Step 1: Find the record with the given verify code
     const verifyRecord = await VerifyModel.findOne({ verifyCode });
-    console.log(verifyRecord)
+    console.log(verifyRecord);
 
     if (!verifyRecord) {
       return res.status(404).json({ message: "Verify code not found." });
     }
 
-    // Step 2: Use the betId from that record to find the match
+    // Step 2: Check if the verify code is within 24 hours
+    const now = new Date();
+    const expiryTime = new Date(verifyRecord.createdAt);
+    expiryTime.setHours(expiryTime.getHours() + 24); // add 24 hours
+
+    if (now > expiryTime) {
+      return res.status(400).json({ message: "Verify code expired." });
+    }
+
+    // Step 3: Use the betId from that record to find the match
     const match = await bet.findOne({ _id: verifyRecord.betId });
 
     if (!match) {
-      return res.status(404).json({ message: "Match not found for given verify code." });
+      return res
+        .status(404)
+        .json({ message: "Match not found for given verify code." });
     }
 
     res.status(200).json({ match });
@@ -68,5 +79,6 @@ router.get("/betverify-code/:verifyCode", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 module.exports = router
