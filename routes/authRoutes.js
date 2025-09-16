@@ -4,8 +4,8 @@ const jwt = require("jsonwebtoken");
 const Otp = require("../models/otp");
 const User = require("../models/user");
 const authMiddleware = require("../middleware/authMiddleware");
-const UserImage = require("../models/UserImage")
-const Balance = require("../models/UserBalance")
+const UserImage = require("../models/UserImage");
+const Balance = require("../models/UserBalance");
 
 const router = express.Router();
 const SECRET_KEY = "your_secret_key"; // Change this to a secure secret
@@ -51,8 +51,6 @@ router.post("/verify-otp", async (req, res) => {
   res.json({ success: true, message: "OTP verified successfully" });
 });
 
-
-
 router.post("/register", async (req, res) => {
   const {
     name,
@@ -69,8 +67,14 @@ router.post("/register", async (req, res) => {
 
   // ✅ Validate all fields
   if (
-    !name || !password || !username || !email ||
-    !expiryDate || !subscription || !role || !mobileNumber
+    !name ||
+    !password ||
+    !username ||
+    !email ||
+    !expiryDate ||
+    !subscription ||
+    !role ||
+    !mobileNumber
   ) {
     return res.status(400).json({
       success: false,
@@ -81,7 +85,7 @@ router.post("/register", async (req, res) => {
   try {
     // ✅ Check if username, email, or mobile already exists
     const existingUser = await User.findOne({
-      $or: [{ username }, { email }, { mobileNumber }]
+      $or: [{ username }, { email }, { mobileNumber }],
     });
 
     if (existingUser) {
@@ -130,19 +134,19 @@ router.post("/register", async (req, res) => {
         role: newUser.role,
       },
     });
-
   } catch (err) {
     console.error("Error registering user:", err);
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 });
 
-
 router.post("/login", async (req, res) => {
   const { identifier, password } = req.body; // identifier can be email, username, or mobile number
 
   if (!identifier || !password) {
-    return res.status(400).json({ success: false, message: "Both fields are required" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Both fields are required" });
   }
 
   try {
@@ -156,13 +160,17 @@ router.post("/login", async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
 
     // ✅ Verify password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid credentials" });
     }
 
     // ✅ Generate JWT
@@ -191,7 +199,6 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
-
 
 router.get("/user/profile", authMiddleware, async (req, res) => {
   try {
@@ -285,8 +292,11 @@ router.post("/admin/login", async (req, res) => {
         .json({ message: "email and password are required." });
     }
     if (
-      (email !== "Capsiteafrica@gmail.com" || email !== "Moderator@gmail.com") &
-      (password !== "Fiifi9088.")
+      !(
+        (email === "Capsiteafrica@gmail.com" ||
+          email === "Moderator@gmail.com") &&
+        password === "Fiifi9088."
+      )
     ) {
       return res.status(400).json({ message: "email or password is wrong." });
     }
@@ -294,11 +304,49 @@ router.post("/admin/login", async (req, res) => {
     // Generate JWT token
     const token = jwt.sign({ email }, SECRET_KEY, { expiresIn: "7d" });
 
-    res.json({ success: true, message: "Login successful", token });
+    res.cookie("sportybetToken", token, {
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      sameSite: "none",
+      secure: true,
+    });
+
+    res
+      .status(200)
+      .json({ success: true, message: "Login successful", user: { email } });
   } catch (error) {
     console.error("Error in admin login", error);
     res.status(500).json({ message: "Server error" });
   }
+});
+
+router.get("/auth/me", (req, res) => {
+  try {
+    const token = req.cookies.sportybetToken;
+    if (!token) {
+      return res
+        .status(401)
+        .json({ message: "Unauthorized - No token provided" });
+    }
+    const decoded = jwt.verify(token, SECRET_KEY);
+    if (!decoded) {
+      return res.status(401).json({ message: "Unauthorized - Invalid token" });
+    }
+    const user = { email: decoded.email };
+    res.status(200).json({ success: true, user: user });
+  } catch (error) {
+    console.error("Error in getMe controller", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+router.post("/auth/logout", (req, res) => {
+  res.clearCookie("sportybetToken", {
+    httpOnly: true,
+    sameSite: "none",
+    secure: true,
+  });
+  res.status(200).json({ success: true, message: "Logout Successfully" });
 });
 
 router.get("/admin/getAllUsers", async (req, res) => {
@@ -470,7 +518,9 @@ router.patch("/update-status/:userId", async (req, res) => {
   const { status } = req.body;
 
   if (!["Active", "Hold"].includes(status)) {
-    return res.status(400).json({ error: "Invalid status. Must be 'Active' or 'Hold'." });
+    return res
+      .status(400)
+      .json({ error: "Invalid status. Must be 'Active' or 'Hold'." });
   }
 
   try {
@@ -508,7 +558,7 @@ router.post("/update-profile", async (req, res) => {
       name,
       mobileNumber: phone,
       email,
-      userIcon,  // ✅ store avatar here
+      userIcon, // ✅ store avatar here
     });
 
     // ✅ Update or create balance
@@ -525,8 +575,4 @@ router.post("/update-profile", async (req, res) => {
   }
 });
 
-
-
-
 module.exports = router;
-
