@@ -20,11 +20,15 @@ const userSchema = new mongoose.Schema(
       default: "Basic",
     },
     expiry: { type: Date },
+    expiryPeriod: {
+      type: String
+    },
     accountStatus: {
       type: String,
       enum: ["Active", "Hold"],
       default: "Active",
     },
+
     grandAuditLimit: { type: Number, default: 0 },
     token: { type: String },
     role: {

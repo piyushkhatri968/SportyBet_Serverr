@@ -61,6 +61,7 @@ router.post("/register", async (req, res) => {
     subscription,
     role,
     mobileNumber,
+    expiryPeriod
   } = req.body;
 
   console.log("Register request:", req.body);
@@ -108,6 +109,15 @@ router.post("/register", async (req, res) => {
       });
     }
 
+    const expiryMap = {
+      14: "2 Weeks",
+      30: "1 Month",
+      60: "2 Months",
+      90: "3 Months"
+    }
+
+    const expiryValue = expiryMap[expiryPeriod];
+
     // ✅ Create and save new user
     const newUser = new User({
       name,
@@ -117,6 +127,7 @@ router.post("/register", async (req, res) => {
       mobileNumber,
       subscription,
       expiry,
+      expiryPeriod: expiryValue,
       role,
     });
 
@@ -485,9 +496,21 @@ router.put("/admin/activeUserAccount/:id", async (req, res) => {
     const expiry = new Date();
     expiry.setDate(expiry.getDate() + expiryDays);
 
+    const expiryMap = {
+      7: "1 Week",
+      14: "2 Weeks",
+      21: "3 Weeks",
+      30: "1 Month",
+      60: "2 Months",
+      90: "3 Months"
+    }
+
+    const expiryValue = expiryMap[expiryDate];
+
     // Update user status & expiry date
     await User.findByIdAndUpdate(id, {
       expiry: expiry,
+      expiryPeriod: expiryValue
     });
 
     res
