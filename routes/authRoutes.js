@@ -598,4 +598,33 @@ router.post("/update-profile", async (req, res) => {
   }
 });
 
+// Update user's grand audit limit
+router.put("/update-grand-audit-limit", async (req, res) => {
+  try {
+    const { userId, grandAuditLimit } = req.body;
+
+    if (!userId || grandAuditLimit === undefined || grandAuditLimit === null) {
+      return res.status(400).json({ message: "userId and grandAuditLimit are required" });
+    }
+
+    const parsedLimit = Number(grandAuditLimit);
+    if (Number.isNaN(parsedLimit) || parsedLimit < 0) {
+      return res.status(400).json({ message: "grandAuditLimit must be a non-negative number" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.grandAuditLimit = parsedLimit;
+    await user.save();
+
+    return res.status(200).json({ message: "Grand audit limit updated", grandAuditLimit: user.grandAuditLimit });
+  } catch (error) {
+    console.error("Error updating grand audit limit:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
 module.exports = router;
