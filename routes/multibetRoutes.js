@@ -110,6 +110,83 @@ router.post("/add-match", async (req, res) => {
     }
   });
 
+router.post("/add-match1", async (req, res) => {
+  try {
+    const {
+      userId, // References Bet document _id
+      gameId,
+      dateTime,
+      teams,
+      ftScore = "",
+      pick,
+      market,
+      outcome,
+      status,
+      odd = "0.1",
+      chatNumber = "0",
+      type = "Football",
+      userId1, // References User document _id
+      liveOdd,
+    } = req.body;
+
+    // Validation: Check required fields
+    if (!userId || !gameId || !dateTime || !teams || !pick || !market || !outcome || !status || !userId1) {
+      return res.status(400).json({ message: "All required fields must be provided" });
+    }
+
+    // Validate userId (Bet document reference)
+    const betExists = await oddModel.findById(userId);
+    if (!betExists) {
+      return res.status(400).json({ message: "Invalid Bet ID" });
+    }
+
+    // Validate type
+    const validTypes = ["Football", "eFootball", "vFootball"];
+    if (!validTypes.includes(type)) {
+      return res.status(400).json({ message: "Invalid type value" });
+    }
+
+    // Save match to multbet collection
+    const newMatch = new Bet({
+      userId,
+      gameId,
+      dateTime,
+      teams,
+      ftScore,
+      pick,
+      market,
+      outcome,
+      status,
+      odd,
+      chatNumber,
+      type,
+      userId1,
+      liveOdd,
+    });
+    await newMatch.save();
+
+    // Cashout logic
+    const cashData = {
+      betId: userId,
+      amount: 0,
+      cashoutStatus: "cashout",
+    };
+
+    const cashExistData = await cashout.findOne({ betId: userId });
+    if (cashExistData) {
+      await cashout.updateOne({ betId: userId }, { $set: cashData });
+    } else {
+      await cashout.create(cashData);
+    }
+
+    res.status(201).json({ message: "Match added successfully", match: newMatch });
+  } catch (error) {
+    console.error("❌ Error adding match:", error);
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+});
+
+
 // **API to Fetch Stored Bets**
 router.get("/multibets/:userId", async (req, res) => {
     try {
