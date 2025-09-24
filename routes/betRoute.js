@@ -72,6 +72,29 @@ router.post("/bets", async (req, res) => {
   }
 });
 
+router.post("/bets1", async (req, res) => {
+  try {
+    const { userId, date, betCode, stake, odd } = req.body;
+
+    // Validate required fields
+    if (!userId || !date || !betCode || !stake) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    // Generate unique booking code
+    const bookingCode = generateBookingCode();
+
+    const newBet = new Bet({ userId, date, betCode, stake, odd, bookingCode });
+    const savedBet = await newBet.save();
+
+    res.status(201).json(savedBet);
+  } catch (error) {
+    console.error("Error adding bet:", error.message);
+    res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+});
+
+
   // Update Odd for a Bet
 router.put("/bets/:betId", async (req, res) => {
   try {
