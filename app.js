@@ -11,27 +11,33 @@ const depositRoute = require("./routes/depositeRoute.js");
 const verifycodeRoute = require("./routes/verifyCodeRoute.js");
 const oddRoute = require("./routes/oddRoute.js");
 const cashOut = require("./routes/cashoutRoute.js");
-const imageRoutes = require("./routes/ImageRoute.js")
-const matchesRoutes = require("./routes/matchesRoute.js")
-const topmatchesRoutes = require("./routes/topMatchRoute.js")
-const WalletRoutes = require("./routes/wallet.js")
-const WinningRoutes = require("./routes/winningRoute.js")
-const addonRoutes = require("./routes/addonRoute.js")
-const useraddonRoutes = require("./routes/userAddonRoute.js")
-const proImgRoutes = require("./routes/profileImageRoute.js")
-const userImgRoutes = require("./routes/UserImageRoute.js")
-const BookingRoutes = require("./routes/BookingRoute.js")
-const notification = require("./routes/notification.js")
-const path = require("path")
+const imageRoutes = require("./routes/ImageRoute.js");
+const matchesRoutes = require("./routes/matchesRoute.js");
+const topmatchesRoutes = require("./routes/topMatchRoute.js");
+const WalletRoutes = require("./routes/wallet.js");
+const WinningRoutes = require("./routes/winningRoute.js");
+const addonRoutes = require("./routes/addonRoute.js");
+const useraddonRoutes = require("./routes/userAddonRoute.js");
+const proImgRoutes = require("./routes/profileImageRoute.js");
+const userImgRoutes = require("./routes/UserImageRoute.js");
+const BookingRoutes = require("./routes/BookingRoute.js");
+const notification = require("./routes/notification.js");
+const path = require("path");
+const cookieParser = require("cookie-parser");
 
 // Middleware for parsing JSON
 app.use(express.json());
+app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use(
   cors({
-    origin: "*", // Replace with your frontend URL
+    origin: [
+      "https://admingh.online",
+      "https://www.admingh.online",
+      "http://localhost:5173",
+    ],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
@@ -81,7 +87,9 @@ app.post("/send-notification", async (req, res) => {
   }
   const tokenData = pushTokens[phoneNumber];
   if (!tokenData) {
-    return res.status(404).json({ error: "No push token found for phone number" });
+    return res
+      .status(404)
+      .json({ error: "No push token found for phone number" });
   }
   const message = {
     to: tokenData.pushToken,
@@ -112,7 +120,7 @@ app.post("/send-notification", async (req, res) => {
 
 // Connect to MongoDB (replace with your own URI)
 mongoose
-  .connect(process.env.MONGO_URL , {
+  .connect(process.env.MONGO_URL, {
     // useNewUrlParser: true,
     // useUnifiedTopology: true,
   })
@@ -128,6 +136,6 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-
-
 // updated
+
+// test for hiickey
