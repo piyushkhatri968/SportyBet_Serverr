@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const Otp = require("../models/otp");
 const User = require("../models/user");
 const authMiddleware = require("../middleware/authMiddleware");
+const PasswordChangeRequest = require("../models/PasswordChangeRequest");
 const UserImage = require("../models/UserImage");
 const Balance = require("../models/UserBalance");
 
@@ -623,6 +624,111 @@ router.put("/update-grand-audit-limit", async (req, res) => {
     return res.status(200).json({ message: "Grand audit limit updated", grandAuditLimit: user.grandAuditLimit });
   } catch (error) {
     console.error("Error updating grand audit limit:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Create a password change request (user initiates)
+router.post("/password-change/request", async (req, res) => {
+  try {
+    const { userId, currentPassword, newPassword } = req.body;
+    if (!userId || !currentPassword || !newPassword) {
+      return res.status(400).json({ message: "userId, currentPassword and newPassword are required" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    // If there is an existing pending request, reject creating another
+    const existingPending = await PasswordChangeRequest.findOne({ userId, status: "pending" });
+    if (existingPending) {
+      return res.status(409).json({ message: "There is already a pending password change request" });
+    }
+
+    const saltRounds = 10;
+    const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+
+    const requestDoc = await PasswordChangeRequest.create({
+      userId,
+      newPasswordHash,
+      status: "pending",
+    });
+
+    return res.status(201).json({ success: true, message: "Password change request submitted and pending admin approval", requestId: requestDoc._id });
+  } catch (error) {
+    console.error("Error creating password change request:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Admin: list password change requests (optionally filter by status)
+router.get("/admin/password-change/requests", async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = {};
+    if (status && ["pending", "approved", "rejected"].includes(status)) {
+      filter.status = status;
+    }
+    const requests = await PasswordChangeRequest.find(filter).sort({ createdAt: -1 }).populate("userId", "name email username mobileNumber");
+    return res.status(200).json({ success: true, requests });
+  } catch (error) {
+    console.error("Error listing password change requests:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Admin: approve a password change request and update user's password
+router.put("/admin/password-change/approve/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const requestDoc = await PasswordChangeRequest.findById(id);
+    if (!requestDoc) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+    if (requestDoc.status !== "pending") {
+      return res.status(400).json({ message: "Only pending requests can be approved" });
+    }
+
+    // Update user password to the new hashed password
+    await User.findByIdAndUpdate(requestDoc.userId, { password: requestDoc.newPasswordHash });
+
+    requestDoc.status = "approved";
+    await requestDoc.save();
+
+    return res.status(200).json({ success: true, message: "Password updated and request approved" });
+  } catch (error) {
+    console.error("Error approving password change request:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Admin: reject a password change request
+router.put("/admin/password-change/reject/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const requestDoc = await PasswordChangeRequest.findById(id);
+    if (!requestDoc) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+    if (requestDoc.status !== "pending") {
+      return res.status(400).json({ message: "Only pending requests can be rejected" });
+    }
+
+    requestDoc.status = "rejected";
+    requestDoc.rejectedReason = reason || "";
+    await requestDoc.save();
+
+    return res.status(200).json({ success: true, message: "Password change request rejected" });
+  } catch (error) {
+    console.error("Error rejecting password change request:", error);
     return res.status(500).json({ message: "Server error" });
   }
 });
