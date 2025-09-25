@@ -186,6 +186,18 @@ router.post("/login", async (req, res) => {
         .json({ success: false, message: "Invalid credentials" });
     }
 
+    // ✅ Check if account is deactivated
+    if (user.isDeactivated) {
+      return res
+        .status(403)
+        .json({ 
+          success: false, 
+          message: "Account is deactivated. Please reactivate your account to continue.",
+          isDeactivated: true,
+          remainingDays: user.remainingSubscriptionDays
+        });
+    }
+
     // ✅ Generate JWT
     const token = jwt.sign({ id: user._id, email: user.email }, SECRET_KEY, {
       expiresIn: "7d",
@@ -702,6 +714,117 @@ router.put("/update-grand-audit-limit", async (req, res) => {
   } catch (error) {
     console.error("Error updating grand audit limit:", error);
     return res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Deactivate user account and pause subscription
+router.put("/deactivate-account", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    if (user.isDeactivated) {
+      return res.status(400).json({ success: false, message: "Account is already deactivated" });
+    }
+
+    // Calculate remaining subscription days
+    const now = new Date();
+    const remainingDays = user.expiry ? Math.max(0, Math.ceil((user.expiry - now) / (1000 * 60 * 60 * 24))) : 0;
+
+    // Update user with deactivation info
+    await User.findByIdAndUpdate(userId, {
+      isDeactivated: true,
+      accountStatus: "Deactivated",
+      deactivatedAt: now,
+      subscriptionPausedAt: now,
+      remainingSubscriptionDays: remainingDays,
+    });
+
+    res.json({ 
+      success: true, 
+      message: "Account deactivated successfully. Your subscription has been paused.",
+      remainingDays 
+    });
+  } catch (error) {
+    console.error("Error deactivating account:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Reactivate user account and resume subscription
+router.put("/reactivate-account", async (req, res) => {
+  try {
+    const { identifier, password } = req.body; // identifier can be email, username, or mobile number
+
+    if (!identifier || !password) {
+      return res.status(400).json({ success: false, message: "Both identifier and password are required" });
+    }
+
+    // Find user by identifier
+    const user = await User.findOne({
+      $or: [
+        { email: identifier },
+        { username: identifier },
+        { mobileNumber: identifier },
+      ],
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Verify password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+
+    if (!user.isDeactivated) {
+      return res.status(400).json({ success: false, message: "Account is not deactivated" });
+    }
+
+    // Calculate new expiry date based on remaining days
+    const now = new Date();
+    const newExpiry = new Date(now.getTime() + (user.remainingSubscriptionDays * 24 * 60 * 60 * 1000));
+
+    // Reactivate account and resume subscription
+    await User.findByIdAndUpdate(user._id, {
+      isDeactivated: false,
+      accountStatus: "Active",
+      deactivatedAt: null,
+      subscriptionPausedAt: null,
+      expiry: newExpiry,
+      remainingSubscriptionDays: 0,
+    });
+
+    // Generate new JWT token
+    const token = jwt.sign({ id: user._id, email: user.email }, SECRET_KEY, {
+      expiresIn: "7d",
+    });
+
+    // Save token in DB
+    await User.findByIdAndUpdate(user._id, { token });
+
+    res.json({
+      success: true,
+      message: "Account reactivated successfully. Your subscription has been resumed.",
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        mobileNumber: user.mobileNumber,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("Error reactivating account:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 

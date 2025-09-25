@@ -25,8 +25,22 @@ const userSchema = new mongoose.Schema(
     },
     accountStatus: {
       type: String,
-      enum: ["Active", "Hold"],
+      enum: ["Active", "Hold", "Deactivated"],
       default: "Active",
+    },
+    isDeactivated: {
+      type: Boolean,
+      default: false,
+    },
+    deactivatedAt: {
+      type: Date,
+    },
+    subscriptionPausedAt: {
+      type: Date,
+    },
+    remainingSubscriptionDays: {
+      type: Number,
+      default: 0,
     },
 
     grandAuditLimit: { type: Number, default: 0 },
