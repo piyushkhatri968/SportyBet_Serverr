@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Otp = require("../models/otp");
 const User = require("../models/user");
+const UserDeactivation = require("../models/UserDeactivation");
 const authMiddleware = require("../middleware/authMiddleware");
 const PasswordChangeRequest = require("../models/PasswordChangeRequest");
 const UserImage = require("../models/UserImage");
@@ -187,14 +188,15 @@ router.post("/login", async (req, res) => {
     }
 
     // ✅ Check if account is deactivated
-    if (user.isDeactivated) {
+    const deactivationRecord = await UserDeactivation.findOne({ userId: user._id });
+    if (deactivationRecord && deactivationRecord.isDeactivated) {
       return res
         .status(403)
         .json({ 
           success: false, 
           message: "Account is deactivated. Please reactivate your account to continue.",
           isDeactivated: true,
-          remainingDays: user.remainingSubscriptionDays
+          remainingDays: deactivationRecord.remainingSubscriptionDays
         });
     }
 
@@ -727,7 +729,9 @@ router.put("/deactivate-account", authMiddleware, async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    if (user.isDeactivated) {
+    // Check if account is already deactivated
+    const existingDeactivation = await UserDeactivation.findOne({ userId });
+    if (existingDeactivation && existingDeactivation.isDeactivated) {
       return res.status(400).json({ success: false, message: "Account is already deactivated" });
     }
 
@@ -735,13 +739,26 @@ router.put("/deactivate-account", authMiddleware, async (req, res) => {
     const now = new Date();
     const remainingDays = user.expiry ? Math.max(0, Math.ceil((user.expiry - now) / (1000 * 60 * 60 * 24))) : 0;
 
-    // Update user with deactivation info
-    await User.findByIdAndUpdate(userId, {
+    // Create or update deactivation record
+    const deactivationData = {
+      userId,
       isDeactivated: true,
-      accountStatus: "Deactivated",
       deactivatedAt: now,
       subscriptionPausedAt: now,
       remainingSubscriptionDays: remainingDays,
+      originalExpiryDate: user.expiry,
+      deactivationReason: "user_request"
+    };
+
+    if (existingDeactivation) {
+      await UserDeactivation.findByIdAndUpdate(existingDeactivation._id, deactivationData);
+    } else {
+      await UserDeactivation.create(deactivationData);
+    }
+
+    // Update user account status
+    await User.findByIdAndUpdate(userId, {
+      accountStatus: "Deactivated"
     });
 
     res.json({ 
@@ -783,22 +800,27 @@ router.put("/reactivate-account", async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
-    if (!user.isDeactivated) {
+    // Check deactivation record
+    const deactivationRecord = await UserDeactivation.findOne({ userId: user._id });
+    if (!deactivationRecord || !deactivationRecord.isDeactivated) {
       return res.status(400).json({ success: false, message: "Account is not deactivated" });
     }
 
     // Calculate new expiry date based on remaining days
     const now = new Date();
-    const newExpiry = new Date(now.getTime() + (user.remainingSubscriptionDays * 24 * 60 * 60 * 1000));
+    const newExpiry = new Date(now.getTime() + (deactivationRecord.remainingSubscriptionDays * 24 * 60 * 60 * 1000));
+
+    // Update deactivation record
+    await UserDeactivation.findByIdAndUpdate(deactivationRecord._id, {
+      isDeactivated: false,
+      reactivatedAt: now,
+      reactivationCount: deactivationRecord.reactivationCount + 1
+    });
 
     // Reactivate account and resume subscription
     await User.findByIdAndUpdate(user._id, {
-      isDeactivated: false,
       accountStatus: "Active",
-      deactivatedAt: null,
-      subscriptionPausedAt: null,
-      expiry: newExpiry,
-      remainingSubscriptionDays: 0,
+      expiry: newExpiry
     });
 
     // Generate new JWT token
@@ -824,6 +846,34 @@ router.put("/reactivate-account", async (req, res) => {
     });
   } catch (error) {
     console.error("Error reactivating account:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Get deactivation status for a user
+router.get("/deactivation-status", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const deactivationRecord = await UserDeactivation.findOne({ userId });
+    
+    if (!deactivationRecord) {
+      return res.json({ 
+        success: true, 
+        isDeactivated: false,
+        message: "Account is active" 
+      });
+    }
+
+    res.json({
+      success: true,
+      isDeactivated: deactivationRecord.isDeactivated,
+      deactivatedAt: deactivationRecord.deactivatedAt,
+      remainingDays: deactivationRecord.remainingSubscriptionDays,
+      reactivationCount: deactivationRecord.reactivationCount
+    });
+  } catch (error) {
+    console.error("Error fetching deactivation status:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
