@@ -7,6 +7,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const PasswordChangeRequest = require("../models/PasswordChangeRequest");
 const UserImage = require("../models/UserImage");
 const Balance = require("../models/UserBalance");
+const Device = require("../models/Device");
 
 const router = express.Router();
 const SECRET_KEY = "your_secret_key"; // Change this to a secure secret
@@ -153,7 +154,7 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
-  const { identifier, password } = req.body; // identifier can be email, username, or mobile number
+  const { identifier, password, deviceInfo } = req.body; // identifier can be email, username, or mobile number
 
   if (!identifier || !password) {
     return res
@@ -193,6 +194,46 @@ router.post("/login", async (req, res) => {
     // ✅ Save token in DB
     await User.findByIdAndUpdate(user._id, { token });
 
+    // ✅ Track device information if provided
+    if (deviceInfo) {
+      try {
+        const deviceData = {
+          userId: user._id,
+          deviceId: deviceInfo.deviceId || req.ip,
+          deviceName: deviceInfo.deviceName || "Unknown Device",
+          deviceType: deviceInfo.deviceType || "unknown",
+          platform: deviceInfo.platform || "Unknown",
+          osVersion: deviceInfo.osVersion,
+          appVersion: deviceInfo.appVersion,
+          ipAddress: req.ip,
+          location: deviceInfo.location,
+          lastLoginAt: new Date(),
+        };
+
+        // Check if device already exists
+        const existingDevice = await Device.findOne({
+          userId: user._id,
+          deviceId: deviceData.deviceId,
+        });
+
+        if (existingDevice) {
+          // Update existing device
+          await Device.findByIdAndUpdate(existingDevice._id, {
+            lastLoginAt: new Date(),
+            loginCount: existingDevice.loginCount + 1,
+            isActive: true,
+            ...deviceData,
+          });
+        } else {
+          // Create new device
+          await Device.create(deviceData);
+        }
+      } catch (deviceError) {
+        console.error("Device tracking error:", deviceError);
+        // Don't fail login if device tracking fails
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: "Login successful",
@@ -226,6 +267,42 @@ router.get("/user/profile", authMiddleware, async (req, res) => {
     res.json({ success: true, user });
   } catch (error) {
     console.error("Error fetching user data:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Get user devices
+router.get("/user/devices", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const devices = await Device.find({ userId, isActive: true })
+      .sort({ lastLoginAt: -1 })
+      .select("-userId -__v");
+
+    res.json({ success: true, devices });
+  } catch (error) {
+    console.error("Error fetching user devices:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Deactivate a device
+router.put("/user/devices/:deviceId/deactivate", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { deviceId } = req.params;
+
+    const device = await Device.findOne({ userId, deviceId });
+    if (!device) {
+      return res.status(404).json({ error: "Device not found" });
+    }
+
+    await Device.findByIdAndUpdate(device._id, { isActive: false });
+
+    res.json({ success: true, message: "Device deactivated successfully" });
+  } catch (error) {
+    console.error("Error deactivating device:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
