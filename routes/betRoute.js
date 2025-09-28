@@ -39,10 +39,10 @@ const generateBookingCode = (length = 8) => {
 // Add a Bet
 router.post("/bets", async (req, res) => {
   try {
-    const { userId, date, betCode, stake, odd } = req.body;
+    const { userId, date, betCode1, stake, odd } = req.body;
 
     // Validate required fields
-    if (!userId || !date || !betCode || !stake) {
+    if (!userId || !date || !betCode1 || !stake) {
       return res.status(400).json({ error: "All fields are required" });
     }
 
@@ -61,6 +61,7 @@ router.post("/bets", async (req, res) => {
 
     // Generate unique booking code
     const bookingCode = generateBookingCode();
+    const betCode = generateBookingCode(5)
 
     const newBet = new Bet({ userId, date, betCode, stake, odd, bookingCode });
     const savedBet = await newBet.save();
@@ -82,7 +83,7 @@ router.post("/bets1", async (req, res) => {
     }
 
     // Generate unique booking code
-    const bookingCode = generateBookingCode();
+    const bookingCode = betCode;
 
     const newBet = new Bet({ userId, date, betCode, stake, odd, bookingCode });
     const savedBet = await newBet.save();
