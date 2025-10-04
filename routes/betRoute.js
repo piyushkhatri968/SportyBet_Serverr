@@ -39,10 +39,10 @@ const generateBookingCode = (length = 8) => {
 // Add a Bet
 router.post("/bets", async (req, res) => {
   try {
-    const { userId, date, betCode, stake, odd } = req.body;
+    const { userId, date,betCode, stake, odd } = req.body;
 
     // Validate required fields
-    if (!userId || !date || !betCode || !stake) {
+    if (!userId || !date  || !betCode || !stake) {
       return res.status(400).json({ error: "All fields are required" });
     }
 
@@ -72,7 +72,30 @@ router.post("/bets", async (req, res) => {
   }
 });
 
-  // Update Odd for a Bet
+
+router.post("/bets1", async (req, res) => {
+  try {
+    const { userId, date, stake, odd, bookingCode} = req.body;
+
+    // Validate required fields
+    if (!userId || !date || !bookingCode || !stake) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    // Generate unique booking code
+    const betCode = generateBookingCode(5)
+
+    const newBet = new Bet({ userId, date, betCode, stake, odd, bookingCode });
+    const savedBet = await newBet.save();
+
+    res.status(201).json(savedBet);
+  } catch (error) {
+    console.error("Error adding bet:", error.message);
+    res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+});
+
+
 router.put("/bets/:betId", async (req, res) => {
   try {
     const { betId } = req.params;

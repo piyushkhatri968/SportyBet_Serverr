@@ -3,9 +3,12 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Otp = require("../models/otp");
 const User = require("../models/user");
+const UserDeactivation = require("../models/UserDeactivation");
 const authMiddleware = require("../middleware/authMiddleware");
+const PasswordChangeRequest = require("../models/PasswordChangeRequest");
 const UserImage = require("../models/UserImage");
 const Balance = require("../models/UserBalance");
+const Device = require("../models/Device");
 
 const router = express.Router();
 const SECRET_KEY = "your_secret_key"; // Change this to a secure secret
@@ -152,7 +155,7 @@ router.post("/register", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
-  const { identifier, password } = req.body; // identifier can be email, username, or mobile number
+  const { identifier, password, deviceInfo } = req.body; // identifier can be email, username, or mobile number
 
   if (!identifier || !password) {
     return res
@@ -184,6 +187,19 @@ router.post("/login", async (req, res) => {
         .json({ success: false, message: "Invalid credentials" });
     }
 
+    // ✅ Check if account is deactivated
+    const deactivationRecord = await UserDeactivation.findOne({ userId: user._id });
+    if (deactivationRecord && deactivationRecord.isDeactivated) {
+      return res
+        .status(403)
+        .json({ 
+          success: false, 
+          message: "Account is deactivated. Please reactivate your account to continue.",
+          isDeactivated: true,
+          remainingDays: deactivationRecord.remainingSubscriptionDays
+        });
+    }
+
     // ✅ Generate JWT
     const token = jwt.sign({ id: user._id, email: user.email }, SECRET_KEY, {
       expiresIn: "7d",
@@ -191,6 +207,46 @@ router.post("/login", async (req, res) => {
 
     // ✅ Save token in DB
     await User.findByIdAndUpdate(user._id, { token });
+
+    // ✅ Track device information if provided
+    if (deviceInfo) {
+      try {
+        const deviceData = {
+          userId: user._id,
+          deviceId: deviceInfo.deviceId || req.ip,
+          deviceName: deviceInfo.deviceName || "Unknown Device",
+          deviceType: deviceInfo.deviceType || "unknown",
+          platform: deviceInfo.platform || "Unknown",
+          osVersion: deviceInfo.osVersion,
+          appVersion: deviceInfo.appVersion,
+          ipAddress: req.ip,
+          location: deviceInfo.location,
+          lastLoginAt: new Date(),
+        };
+
+        // Check if device already exists
+        const existingDevice = await Device.findOne({
+          userId: user._id,
+          deviceId: deviceData.deviceId,
+        });
+
+        if (existingDevice) {
+          // Update existing device
+          await Device.findByIdAndUpdate(existingDevice._id, {
+            lastLoginAt: new Date(),
+            loginCount: existingDevice.loginCount + 1,
+            isActive: true,
+            ...deviceData,
+          });
+        } else {
+          // Create new device
+          await Device.create(deviceData);
+        }
+      } catch (deviceError) {
+        console.error("Device tracking error:", deviceError);
+        // Don't fail login if device tracking fails
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -225,6 +281,42 @@ router.get("/user/profile", authMiddleware, async (req, res) => {
     res.json({ success: true, user });
   } catch (error) {
     console.error("Error fetching user data:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Get user devices
+router.get("/user/devices", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const devices = await Device.find({ userId, isActive: true })
+      .sort({ lastLoginAt: -1 })
+      .select("-userId -__v");
+
+    res.json({ success: true, devices });
+  } catch (error) {
+    console.error("Error fetching user devices:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Deactivate a device
+router.put("/user/devices/:deviceId/deactivate", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { deviceId } = req.params;
+
+    const device = await Device.findOne({ userId, deviceId });
+    if (!device) {
+      return res.status(404).json({ error: "Device not found" });
+    }
+
+    await Device.findByIdAndUpdate(device._id, { isActive: false });
+
+    res.json({ success: true, message: "Device deactivated successfully" });
+  } catch (error) {
+    console.error("Error deactivating device:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -595,6 +687,299 @@ router.post("/update-profile", async (req, res) => {
   } catch (err) {
     console.error("Update error:", err);
     return res.status(500).json({ success: false, message: "Update failed" });
+  }
+});
+
+// Update user's grand audit limit
+router.put("/update-grand-audit-limit", async (req, res) => {
+  try {
+    const { userId, grandAuditLimit } = req.body;
+
+    if (!userId || grandAuditLimit === undefined || grandAuditLimit === null) {
+      return res.status(400).json({ message: "userId and grandAuditLimit are required" });
+    }
+
+    const parsedLimit = Number(grandAuditLimit);
+    if (Number.isNaN(parsedLimit) || parsedLimit < 0) {
+      return res.status(400).json({ message: "grandAuditLimit must be a non-negative number" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.grandAuditLimit = parsedLimit;
+    await user.save();
+
+    return res.status(200).json({ message: "Grand audit limit updated", grandAuditLimit: user.grandAuditLimit });
+  } catch (error) {
+    console.error("Error updating grand audit limit:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Deactivate user account and pause subscription
+router.put("/deactivate-account", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Check if account is already deactivated
+    const existingDeactivation = await UserDeactivation.findOne({ userId });
+    if (existingDeactivation && existingDeactivation.isDeactivated) {
+      return res.status(400).json({ success: false, message: "Account is already deactivated" });
+    }
+
+    // Calculate remaining subscription days
+    const now = new Date();
+    const remainingDays = user.expiry ? Math.max(0, Math.ceil((user.expiry - now) / (1000 * 60 * 60 * 24))) : 0;
+
+    // Create or update deactivation record
+    const deactivationData = {
+      userId,
+      isDeactivated: true,
+      deactivatedAt: now,
+      subscriptionPausedAt: now,
+      remainingSubscriptionDays: remainingDays,
+      originalExpiryDate: user.expiry,
+      deactivationReason: "user_request"
+    };
+
+    if (existingDeactivation) {
+      await UserDeactivation.findByIdAndUpdate(existingDeactivation._id, deactivationData);
+    } else {
+      await UserDeactivation.create(deactivationData);
+    }
+
+    // Update user account status
+    await User.findByIdAndUpdate(userId, {
+      accountStatus: "Deactivated"
+    });
+
+    res.json({ 
+      success: true, 
+      message: "Account deactivated successfully. Your subscription has been paused.",
+      remainingDays 
+    });
+  } catch (error) {
+    console.error("Error deactivating account:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Reactivate user account and resume subscription
+router.put("/reactivate-account", async (req, res) => {
+  try {
+    const { identifier, password } = req.body; // identifier can be email, username, or mobile number
+
+    if (!identifier || !password) {
+      return res.status(400).json({ success: false, message: "Both identifier and password are required" });
+    }
+
+    // Find user by identifier
+    const user = await User.findOne({
+      $or: [
+        { email: identifier },
+        { username: identifier },
+        { mobileNumber: identifier },
+      ],
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // Verify password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+
+    // Check deactivation record
+    const deactivationRecord = await UserDeactivation.findOne({ userId: user._id });
+    if (!deactivationRecord || !deactivationRecord.isDeactivated) {
+      return res.status(400).json({ success: false, message: "Account is not deactivated" });
+    }
+
+    // Calculate new expiry date based on remaining days
+    const now = new Date();
+    const newExpiry = new Date(now.getTime() + (deactivationRecord.remainingSubscriptionDays * 24 * 60 * 60 * 1000));
+
+    // Update deactivation record
+    await UserDeactivation.findByIdAndUpdate(deactivationRecord._id, {
+      isDeactivated: false,
+      reactivatedAt: now,
+      reactivationCount: deactivationRecord.reactivationCount + 1
+    });
+
+    // Reactivate account and resume subscription
+    await User.findByIdAndUpdate(user._id, {
+      accountStatus: "Active",
+      expiry: newExpiry
+    });
+
+    // Generate new JWT token
+    const token = jwt.sign({ id: user._id, email: user.email }, SECRET_KEY, {
+      expiresIn: "7d",
+    });
+
+    // Save token in DB
+    await User.findByIdAndUpdate(user._id, { token });
+
+    res.json({
+      success: true,
+      message: "Account reactivated successfully. Your subscription has been resumed.",
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        mobileNumber: user.mobileNumber,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("Error reactivating account:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Get deactivation status for a user
+router.get("/deactivation-status", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const deactivationRecord = await UserDeactivation.findOne({ userId });
+    
+    if (!deactivationRecord) {
+      return res.json({ 
+        success: true, 
+        isDeactivated: false,
+        message: "Account is active" 
+      });
+    }
+
+    res.json({
+      success: true,
+      isDeactivated: deactivationRecord.isDeactivated,
+      deactivatedAt: deactivationRecord.deactivatedAt,
+      remainingDays: deactivationRecord.remainingSubscriptionDays,
+      reactivationCount: deactivationRecord.reactivationCount
+    });
+  } catch (error) {
+    console.error("Error fetching deactivation status:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Create a password change request (user initiates)
+router.post("/password-change/request", async (req, res) => {
+  try {
+    const { userId, currentPassword, newPassword } = req.body;
+    if (!userId || !currentPassword || !newPassword) {
+      return res.status(400).json({ message: "userId, currentPassword and newPassword are required" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    // If there is an existing pending request, reject creating another
+    const existingPending = await PasswordChangeRequest.findOne({ userId, status: "pending" });
+    if (existingPending) {
+      return res.status(409).json({ message: "There is already a pending password change request" });
+    }
+
+    const saltRounds = 10;
+    const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
+
+    const requestDoc = await PasswordChangeRequest.create({
+      userId,
+      newPasswordHash,
+      status: "pending",
+    });
+
+    return res.status(201).json({ success: true, message: "Password change request submitted and pending admin approval", requestId: requestDoc._id });
+  } catch (error) {
+    console.error("Error creating password change request:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Admin: list password change requests (optionally filter by status)
+router.get("/admin/password-change/requests", async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = {};
+    if (status && ["pending", "approved", "rejected"].includes(status)) {
+      filter.status = status;
+    }
+    const requests = await PasswordChangeRequest.find(filter).sort({ createdAt: -1 }).populate("userId", "name email username mobileNumber");
+    return res.status(200).json({ success: true, requests });
+  } catch (error) {
+    console.error("Error listing password change requests:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Admin: approve a password change request and update user's password
+router.put("/admin/password-change/approve/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const requestDoc = await PasswordChangeRequest.findById(id);
+    if (!requestDoc) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+    if (requestDoc.status !== "pending") {
+      return res.status(400).json({ message: "Only pending requests can be approved" });
+    }
+
+    // Update user password to the new hashed password
+    await User.findByIdAndUpdate(requestDoc.userId, { password: requestDoc.newPasswordHash });
+
+    requestDoc.status = "approved";
+    await requestDoc.save();
+
+    return res.status(200).json({ success: true, message: "Password updated and request approved" });
+  } catch (error) {
+    console.error("Error approving password change request:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Admin: reject a password change request
+router.put("/admin/password-change/reject/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const requestDoc = await PasswordChangeRequest.findById(id);
+    if (!requestDoc) {
+      return res.status(404).json({ message: "Request not found" });
+    }
+    if (requestDoc.status !== "pending") {
+      return res.status(400).json({ message: "Only pending requests can be rejected" });
+    }
+
+    requestDoc.status = "rejected";
+    requestDoc.rejectedReason = reason || "";
+    await requestDoc.save();
+
+    return res.status(200).json({ success: true, message: "Password change request rejected" });
+  } catch (error) {
+    console.error("Error rejecting password change request:", error);
+    return res.status(500).json({ message: "Server error" });
   }
 });
 
