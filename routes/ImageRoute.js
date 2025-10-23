@@ -61,6 +61,53 @@ router.post("/uploadImages", upload.array("images", 4), async (req, res) => {
   }
 });
 
+// Upload single image and update specific banner position
+router.post("/uploadSingleImage", upload.single("images"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Please upload an image." });
+    }
+
+    const imageUrl = req.file.path;
+    const bannerIndex = parseInt(req.body.bannerIndex) || 0;
+
+    // Find existing image document
+    let existingImages = await ImageModel.findOne();
+
+    if (existingImages) {
+      // Ensure we have an array of 4 images
+      if (!existingImages.images || existingImages.images.length === 0) {
+        existingImages.images = new Array(4).fill(null);
+      }
+      
+      // Update the specific banner image
+      existingImages.images[bannerIndex] = imageUrl;
+      await existingImages.save();
+      
+      return res.status(200).json({ 
+        message: "Banner image updated successfully!", 
+        imageUrl: imageUrl,
+        data: existingImages 
+      });
+    } else {
+      // Create new images array with the uploaded image at the specified position
+      const images = new Array(4).fill(null);
+      images[bannerIndex] = imageUrl;
+      
+      const newImages = new ImageModel({ images: images });
+      await newImages.save();
+      
+      return res.status(201).json({ 
+        message: "Banner image uploaded successfully!", 
+        imageUrl: imageUrl,
+        data: newImages 
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ message: "Upload failed", error: error.message });
+  }
+});
+
 router.get("/getImages", async (req, res) => {
     try {
       // Find the images from the database

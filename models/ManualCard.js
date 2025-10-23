@@ -55,3 +55,4 @@ manualCardSchema.index({ expiresAt: 1, isActive: 1 });
 manualCardSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('ManualCard', manualCardSchema);
+
