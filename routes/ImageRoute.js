@@ -113,9 +113,12 @@ router.get("/getImages", async (req, res) => {
       // Find the images from the database
       const images = await ImageModel.findOne();
       
-      // If no images are found, return a message
+      // If no images are found, return empty array instead of 404
       if (!images) {
-        return res.status(404).json({ message: "No images found" });
+        return res.status(200).json({ 
+          message: "No images found", 
+          data: { images: [] } 
+        });
       }
       
       // Return the images data
