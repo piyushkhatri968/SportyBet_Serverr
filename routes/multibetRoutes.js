@@ -251,7 +251,7 @@ router.get("/multibets/:userId", async (req, res) => {
                 const hours = now.getHours().toString().padStart(2, "0");
                 const minutes = now.getMinutes().toString().padStart(2, "0");
                 
-                return `${month}/${day}, ${hours}:${minutes}`;
+                return `${day}/${month}, ${hours}:${minutes}`;
             };
 
             const currentTime = formatDate(new Date());
