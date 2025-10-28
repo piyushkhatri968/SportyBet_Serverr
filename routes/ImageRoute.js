@@ -10,12 +10,25 @@ const router = express.Router();
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: "uploads",
+    folder: "sportybet-uploads",
     allowed_formats: ["jpg", "jpeg", "png"],
+    transformation: [{ width: 800, height: 400, crop: "fill" }], // Optimize for banner images
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({ 
+  storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  }
+});
 
 // Helper function to delete images from Cloudinary
 const deleteImagesFromCloudinary = async (imageUrls) => {
@@ -64,12 +77,26 @@ router.post("/uploadImages", upload.array("images", 4), async (req, res) => {
 // Upload single image and update specific banner position
 router.post("/uploadSingleImage", upload.single("images"), async (req, res) => {
   try {
+    console.log('Upload request received:', {
+      hasFile: !!req.file,
+      bannerIndex: req.body.bannerIndex,
+      fileInfo: req.file ? {
+        fieldname: req.file.fieldname,
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      } : null
+    });
+
     if (!req.file) {
+      console.log('No file uploaded');
       return res.status(400).json({ message: "Please upload an image." });
     }
 
     const imageUrl = req.file.path;
     const bannerIndex = parseInt(req.body.bannerIndex) || 0;
+
+    console.log('Processing upload:', { imageUrl, bannerIndex });
 
     // Find existing image document
     let existingImages = await ImageModel.findOne();
@@ -84,6 +111,7 @@ router.post("/uploadSingleImage", upload.single("images"), async (req, res) => {
       existingImages.images[bannerIndex] = imageUrl;
       await existingImages.save();
       
+      console.log('Banner updated successfully:', existingImages);
       return res.status(200).json({ 
         message: "Banner image updated successfully!", 
         imageUrl: imageUrl,
@@ -97,6 +125,7 @@ router.post("/uploadSingleImage", upload.single("images"), async (req, res) => {
       const newImages = new ImageModel({ images: images });
       await newImages.save();
       
+      console.log('New banner created successfully:', newImages);
       return res.status(201).json({ 
         message: "Banner image uploaded successfully!", 
         imageUrl: imageUrl,
@@ -104,7 +133,12 @@ router.post("/uploadSingleImage", upload.single("images"), async (req, res) => {
       });
     }
   } catch (error) {
-    res.status(500).json({ message: "Upload failed", error: error.message });
+    console.error('Upload error:', error);
+    res.status(500).json({ 
+      message: "Upload failed", 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
