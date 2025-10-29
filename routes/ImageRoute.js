@@ -3,8 +3,34 @@ const multer = require("multer");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 const cloudinary = require("../configCloudinary");
 const ImageModel = require("../models/ImagesModel");
+const sharp = require("sharp");
 
 const router = express.Router();
+
+// Function to validate image dimensions
+const validateImageDimensions = async (filePath) => {
+  try {
+    const metadata = await sharp(filePath).metadata();
+    const { width, height } = metadata;
+    
+    console.log('Image dimensions:', { width, height });
+    
+    if (width === 720 && height === 128) {
+      return { valid: true };
+    } else {
+      return { 
+        valid: false, 
+        error: `Image dimensions must be exactly 720x128 pixels. Current dimensions: ${width}x${height} pixels.` 
+      };
+    }
+  } catch (error) {
+    console.error('Error validating image dimensions:', error);
+    return { 
+      valid: false, 
+      error: 'Failed to validate image dimensions.' 
+    };
+  }
+};
 
 // Configure Multer Storage with Cloudinary
 const storage = new CloudinaryStorage({
@@ -12,7 +38,7 @@ const storage = new CloudinaryStorage({
   params: {
     folder: "sportybet-uploads",
     allowed_formats: ["jpg", "jpeg", "png"],
-    transformation: [{ width: 800, height: 400, crop: "fill" }], // Optimize for banner images
+    transformation: [{ width: 720, height: 128, crop: "fill" }], // Exact banner dimensions
   },
 });
 
@@ -47,6 +73,18 @@ router.post("/uploadImages", upload.array("images", 4), async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: "Please upload at least one image." });
+    }
+
+    // Validate dimensions for all uploaded images
+    for (let i = 0; i < req.files.length; i++) {
+      const validation = await validateImageDimensions(req.files[i].path);
+      if (!validation.valid) {
+        console.log(`Image ${i + 1} dimension validation failed:`, validation.error);
+        return res.status(400).json({ 
+          message: `Invalid image dimensions for image ${i + 1}`, 
+          error: validation.error 
+        });
+      }
     }
 
     // Extract Cloudinary URLs
@@ -91,6 +129,16 @@ router.post("/uploadSingleImage", upload.single("images"), async (req, res) => {
     if (!req.file) {
       console.log('No file uploaded');
       return res.status(400).json({ message: "Please upload an image." });
+    }
+
+    // Validate image dimensions before processing
+    const validation = await validateImageDimensions(req.file.path);
+    if (!validation.valid) {
+      console.log('Image dimension validation failed:', validation.error);
+      return res.status(400).json({ 
+        message: "Invalid image dimensions", 
+        error: validation.error 
+      });
     }
 
     const imageUrl = req.file.path;
