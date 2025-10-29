@@ -7,7 +7,7 @@ const sharp = require("sharp");
 
 const router = express.Router();
 
-// Function to validate image dimensions
+// Function to validate image dimensions for home screen banners
 const validateImageDimensions = async (filePath) => {
   try {
     const metadata = await sharp(filePath).metadata();
@@ -15,19 +15,20 @@ const validateImageDimensions = async (filePath) => {
     
     console.log('Image dimensions:', { width, height });
     
+    // Validate exact dimensions for home screen banner
     if (width === 720 && height === 128) {
       return { valid: true };
     } else {
       return { 
         valid: false, 
-        error: `Image dimensions must be exactly 720x128 pixels. Current dimensions: ${width}x${height} pixels.` 
+        error: `❌ Invalid Banner Dimensions\n\nRequired: 720 × 128 pixels (Home Screen Banner)\nYour image: ${width} × ${height} pixels\n\nPlease resize your image to exactly 720×128 pixels.` 
       };
     }
   } catch (error) {
     console.error('Error validating image dimensions:', error);
     return { 
       valid: false, 
-      error: 'Failed to validate image dimensions.' 
+      error: 'Failed to validate image dimensions. Please ensure the image file is valid.' 
     };
   }
 };
@@ -75,13 +76,13 @@ router.post("/uploadImages", upload.array("images", 4), async (req, res) => {
       return res.status(400).json({ message: "Please upload at least one image." });
     }
 
-    // Validate dimensions for all uploaded images
+    // Validate dimensions for all uploaded images (must be 720x128 for home screen banners)
     for (let i = 0; i < req.files.length; i++) {
       const validation = await validateImageDimensions(req.files[i].path);
       if (!validation.valid) {
         console.log(`Image ${i + 1} dimension validation failed:`, validation.error);
         return res.status(400).json({ 
-          message: `Invalid image dimensions for image ${i + 1}`, 
+          message: `Invalid banner dimensions for image ${i + 1}`, 
           error: validation.error 
         });
       }
@@ -131,12 +132,12 @@ router.post("/uploadSingleImage", upload.single("images"), async (req, res) => {
       return res.status(400).json({ message: "Please upload an image." });
     }
 
-    // Validate image dimensions before processing
+    // Validate image dimensions before processing (must be 720x128 for home screen banners)
     const validation = await validateImageDimensions(req.file.path);
     if (!validation.valid) {
       console.log('Image dimension validation failed:', validation.error);
       return res.status(400).json({ 
-        message: "Invalid image dimensions", 
+        message: "Invalid banner dimensions", 
         error: validation.error 
       });
     }
