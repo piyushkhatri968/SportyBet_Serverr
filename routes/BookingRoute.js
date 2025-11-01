@@ -180,7 +180,7 @@ router.post("/place-from-collapsed", async (req, res) => {
         userId: savedBet._id, // Reference to bet _id
         userId1: userId, // Reference to user _id
         gameId: match.gameId || null,
-        dateTime: match.dateTime || match.time || currentTime,
+       dateTime: match.dateTime || match.time || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
         teams: teamsValue,
         ftScore: match.ftScore || "N/A",
         pick: match.pick || "N/A",
