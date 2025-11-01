@@ -27,7 +27,7 @@ router.get("/bets/:userId", async (req, res) => {
   }
 });
 
-const generateBookingCode = (length = 8) => {
+const generateBookingCode = (length = 6) => {
   const chars = '0123456789';
   let result = '';
   for (let i = 0; i < length; i++) {
@@ -83,7 +83,7 @@ router.post("/bets1", async (req, res) => {
     }
 
     // Generate unique booking code
-    const betCode = generateBookingCode(5)
+    const betCode = generateBookingCode(6)
 
     const newBet = new Bet({ userId, date, betCode, stake, odd, bookingCode });
     const savedBet = await newBet.save();
